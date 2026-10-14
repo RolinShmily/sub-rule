@@ -1,0 +1,466 @@
+# 源自 config/mihomo/config/mihomo.yaml，保留其 DNS、分流及规则集。
+# 删除机场订阅和空地区组；通用 TUN 已启用。Clash Verge Rev 可通过 GUI 开关覆写 tun.enable。
+# 凭据字段与 .custom/singbox-dual443/server.json 一致；勿公开发布填入真实凭据的配置。
+proxies:
+  - name: 自建-Reality
+    type: vless
+    server: REPLACE_WITH_NODE_ADDRESS
+    port: 443
+    uuid: REPLACE_WITH_UUID
+    udp: true
+    tls: true
+    network: tcp
+    flow: xtls-rprx-vision
+    servername: www.cloudflare.com
+    client-fingerprint: chrome
+    reality-opts:
+      public-key: REPLACE_WITH_REALITY_PUBLIC_KEY
+      short-id: '01234567'
+    smux:
+      enabled: true
+      padding: true
+  - name: 自建-Hy2
+    type: hysteria2
+    server: REPLACE_WITH_NODE_ADDRESS
+    port: 443
+    password: REPLACE_WITH_HYSTERIA2_PASSWORD
+    sni: REPLACE_WITH_HY2_SNI
+    skip-cert-verify: false
+  - name: 直连
+    type: direct
+    udp: true
+mixed-port: 7890
+allow-lan: false
+bind-address: 127.0.0.1
+ipv6: false
+unified-delay: true
+tcp-concurrent: true
+log-level: info
+keep-alive-idle: 600
+keep-alive-interval: 15
+profile:
+  store-selected: true
+  store-fake-ip: true
+external-controller: 127.0.0.1:9090
+secret: REPLACE_WITH_API_SECRET
+ntp:
+  enable: true
+  write-to-system: false
+tun:
+  enable: true
+  stack: system
+  dns-hijack:
+    - any:53
+    - tcp://any:53
+  auto-route: true
+  auto-detect-interface: true
+  strict-route: true
+sniffer:
+  enable: true
+  override-destination: false
+  force-dns-mapping: false
+  parse-pure-ip: true
+  sniff:
+    HTTP:
+      ports:
+        - 80
+        - 8080-8880
+    TLS:
+      ports:
+        - 443
+        - 8443
+    QUIC:
+      ports:
+        - 443
+        - 8443
+  skip-domain:
+    - Mijia Cloud
+    - +.push.apple.com
+dns:
+  enable: true
+  cache-algorithm: arc
+  ipv6: false
+  enhanced-mode: fake-ip
+  fake-ip-ttl: 1
+  fake-ip-range: 198.18.0.0/16
+  fake-ip-filter-mode: blacklist
+  default-nameserver:
+    - https://223.5.5.5/dns-query
+  proxy-server-nameserver:
+    - https://dns.alidns.com/dns-query
+    - https://doh.pub/dns-query
+  direct-nameserver:
+    - https://dns.alidns.com/dns-query
+    - https://doh.pub/dns-query
+  nameserver-policy:
+    rule-set:cn_domain,private_domain,fakeipfilter_cn,steamcn_domain,microsoftcn_domain,applecn_domain:
+      - https://dns.alidns.com/dns-query#disable-qtype-65=true
+      - https://doh.pub/dns-query#disable-qtype-65=true
+    rule-set:fakeipfilter_!cn:
+      - https://8.8.8.8/dns-query#默认代理&disable-qtype-65=true
+  nameserver:
+    - https://8.8.8.8/dns-query#默认代理&ecs=223.5.5.0/24
+  fallback:
+    - https://8.8.8.8/dns-query#默认代理
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+  fake-ip-filter:
+    - rule-set:fakeipfilter_cn
+    - rule-set:fakeipfilter_!cn
+    - rule-set:private_domain
+    - rule-set:cn_domain
+    - rule-set:microsoftcn_domain
+    - rule-set:applecn_domain
+    - rule-set:steamcn_domain
+proxy-groups:
+  - name: 默认代理
+    type: select
+    proxies:
+      - 自建-Reality
+      - 自建-Hy2
+      - 全部自动
+      - 直连
+  - name: AI
+    type: select
+    proxies:
+      - 默认代理
+      - 自建-Reality
+      - 自建-Hy2
+      - 全部自动
+      - 直连
+  - name: YouTube
+    type: select
+    proxies:
+      - 默认代理
+      - 自建-Reality
+      - 自建-Hy2
+      - 全部自动
+      - 直连
+  - name: Google
+    type: select
+    proxies:
+      - 默认代理
+      - 自建-Reality
+      - 自建-Hy2
+      - 全部自动
+      - 直连
+  - name: GitHub
+    type: select
+    proxies:
+      - 默认代理
+      - 自建-Reality
+      - 自建-Hy2
+      - 全部自动
+      - 直连
+  - name: Telegram
+    type: select
+    proxies:
+      - 默认代理
+      - 自建-Reality
+      - 自建-Hy2
+      - 全部自动
+      - 直连
+  - name: TikTok
+    type: select
+    proxies:
+      - 默认代理
+      - 自建-Reality
+      - 自建-Hy2
+      - 全部自动
+      - 直连
+  - name: NETFLIX
+    type: select
+    proxies:
+      - 默认代理
+      - 自建-Reality
+      - 自建-Hy2
+      - 全部自动
+      - 直连
+  - name: Wallet
+    type: select
+    proxies:
+      - 默认代理
+      - 自建-Reality
+      - 自建-Hy2
+      - 全部自动
+      - 直连
+  - name: Steam
+    type: select
+    proxies:
+      - 默认代理
+      - 自建-Reality
+      - 自建-Hy2
+      - 全部自动
+      - 直连
+  - name: Microsoft
+    type: select
+    proxies:
+      - 默认代理
+      - 自建-Reality
+      - 自建-Hy2
+      - 全部自动
+      - 直连
+  - name: OneDrive
+    type: select
+    proxies:
+      - 默认代理
+      - 自建-Reality
+      - 自建-Hy2
+      - 全部自动
+      - 直连
+  - name: Apple
+    type: select
+    proxies:
+      - 默认代理
+      - 自建-Reality
+      - 自建-Hy2
+      - 全部自动
+      - 直连
+  - name: 漏网之鱼
+    type: select
+    proxies:
+      - 默认代理
+      - 自建-Reality
+      - 自建-Hy2
+      - 全部自动
+      - 直连
+  - name: 全部手动
+    type: select
+    proxies:
+      - 自建-Reality
+      - 自建-Hy2
+      - 直连
+  - name: 全部自动
+    type: url-test
+    proxies:
+      - 自建-Reality
+      - 自建-Hy2
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+    lazy: true
+    tolerance: 50
+  - name: GLOBAL
+    type: select
+    proxies:
+      - 默认代理
+      - 自建-Reality
+      - 自建-Hy2
+      - 全部自动
+      - 直连
+      - AI
+      - YouTube
+      - Google
+      - GitHub
+      - Telegram
+      - TikTok
+      - NETFLIX
+      - Wallet
+      - Steam
+      - Microsoft
+      - OneDrive
+      - Apple
+      - 漏网之鱼
+rules:
+  - RULE-SET,private_ip,直连,no-resolve
+  - RULE-SET,private_domain,直连
+  - RULE-SET,ai_domain,AI
+  - RULE-SET,youtube_domain,YouTube
+  - RULE-SET,google_domain,Google
+  - RULE-SET,github_domain,GitHub
+  - RULE-SET,onedrive_domain,OneDrive
+  - RULE-SET,microsoftcn_domain,直连
+  - RULE-SET,microsoft_domain,Microsoft
+  - RULE-SET,applecn_domain,直连
+  - RULE-SET,apple_domain,Apple
+  - RULE-SET,telegram_domain,Telegram
+  - RULE-SET,tiktok_domain,TikTok
+  - RULE-SET,netflix_domain,NETFLIX
+  - RULE-SET,paypal_domain,Wallet
+  - RULE-SET,binance_domain,Wallet
+  - RULE-SET,okx_domain,Wallet
+  - RULE-SET,usd_domain,Wallet
+  - RULE-SET,steamcn_domain,直连
+  - RULE-SET,steam_domain,Steam
+  - RULE-SET,cn!_domain,默认代理
+  - RULE-SET,google_ip,Google
+  - RULE-SET,apple_ip,Apple
+  - RULE-SET,telegram_ip,Telegram
+  - RULE-SET,netflix_ip,NETFLIX
+  - RULE-SET,cn_ip,直连
+  - MATCH,漏网之鱼
+rule-providers:
+  fakeipfilter_cn:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: text
+    url: https://raw.githubusercontent.com/RolinShmily/sub-rule/refs/heads/main/rules/fakeipfilter-cn.list
+  fakeipfilter_!cn:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: text
+    url: https://raw.githubusercontent.com/RolinShmily/sub-rule/refs/heads/main/rules/fakeipfilter-!cn.list
+  private_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/private.mrs
+  ai_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/category-ai-!cn.mrs
+  youtube_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/youtube.mrs
+  google_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/google.mrs
+  github_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/github.mrs
+  onedrive_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/onedrive.mrs
+  microsoftcn_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/microsoft@cn.mrs
+  microsoft_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/microsoft.mrs
+  applecn_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/apple@cn.mrs
+  apple_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/apple.mrs
+  telegram_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/telegram.mrs
+  tiktok_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/tiktok.mrs
+  netflix_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/netflix.mrs
+  paypal_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/paypal.mrs
+  binance_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/binance.mrs
+  okx_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/okx.mrs
+  usd_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/category-cryptocurrency.mrs
+  steamcn_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/steam@cn.mrs
+  steam_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/steam.mrs
+  cn!_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/geolocation-!cn.mrs
+  cn_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/cn.mrs
+  google_ip:
+    type: http
+    interval: 86400
+    behavior: ipcidr
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geoip/google.mrs
+  apple_ip:
+    type: http
+    interval: 86400
+    behavior: ipcidr
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo-lite/geoip/apple.mrs
+  telegram_ip:
+    type: http
+    interval: 86400
+    behavior: ipcidr
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geoip/telegram.mrs
+  netflix_ip:
+    type: http
+    interval: 86400
+    behavior: ipcidr
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geoip/netflix.mrs
+  cn_ip:
+    type: http
+    interval: 86400
+    behavior: ipcidr
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geoip/cn.mrs
+  private_ip:
+    type: http
+    interval: 86400
+    behavior: ipcidr
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geoip/private.mrs

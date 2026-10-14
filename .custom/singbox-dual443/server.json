@@ -1,0 +1,60 @@
+{
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  "inbounds": [
+    {
+      "tag": "VLESS-Vision-Reality-in",
+      "type": "vless",
+      "listen": "0.0.0.0",
+      "listen_port": 443,
+      "users": [
+        {
+          "uuid": "REPLACE_WITH_UUID",
+          "flow": "xtls-rprx-vision"
+        }
+      ],
+      "tls": {
+        "enabled": true,
+        "server_name": "www.cloudflare.com",
+        "reality": {
+          "enabled": true,
+          "handshake": {
+            "server": "www.cloudflare.com",
+            "server_port": 443
+          },
+          "private_key": "REPLACE_WITH_REALITY_PRIVATE_KEY",
+          "short_id": ["01234567"]
+        }
+      },
+      "multiplex": {
+        "enabled": true,
+        "padding": true
+      }
+    },
+    {
+      "tag": "hysteria-in",
+      "type": "hysteria2",
+      "listen": "0.0.0.0",
+      "listen_port": 443,
+      "users": [
+        {
+          "password": "REPLACE_WITH_HYSTERIA2_PASSWORD"
+        }
+      ],
+      "tls": {
+        "enabled": true,
+        "server_name": "REPLACE_WITH_HY2_SNI",
+        "certificate_path": "REPLACE_WITH_CERTIFICATE_PATH",
+        "key_path": "REPLACE_WITH_KEY_PATH"
+      }
+    }
+  ],
+  "outbounds": [
+    {"tag": "direct", "type": "direct"}
+  ],
+  "route": {
+    "final": "direct"
+  }
+}
