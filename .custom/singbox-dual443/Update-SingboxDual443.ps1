@@ -180,59 +180,95 @@ function Update-SingboxClient([string]$Path) {
         $service.secret = $Values.SingboxApiSecret
     }
 
-    # 处理可选 Headscale / Tailscale 直连域名
-    $hsDomains = @()
-    foreach ($k in @('HeadscaleServer', 'HeadscaleBaseDomain')) {
-        $v = [string]$Values[$k]
-        if (-not [string]::IsNullOrWhiteSpace($v) -and ($v -notmatch '^REPLACE_WITH_')) {
-            $hsDomains += $v.Trim()
+    # 提取有效 Headscale 域名
+    $hsServer = [string]$Values['HeadscaleServer']
+    if ($hsServer -match '^REPLACE_WITH_') { $hsServer = '' } else { $hsServer = $hsServer.Trim() }
+    
+    $hsDomain = [string]$Values['HeadscaleBaseDomain']
+    if ($hsDomain -match '^REPLACE_WITH_') { $hsDomain = '' } else { $hsDomain = $hsDomain.Trim() }
+
+    # 1. 处理 inbounds.platform.http_proxy.bypass_domain (Windows / macOS)
+    if ($null -ne $cfg.inbounds) {
+        foreach ($ib in $cfg.inbounds) {
+            if ($null -ne $ib.platform -and $null -ne $ib.platform.http_proxy -and $null -ne $ib.platform.http_proxy.bypass_domain) {
+                $newBypass = @()
+                foreach ($entry in @($ib.platform.http_proxy.bypass_domain)) {
+                    if ($entry -eq 'REPLACE_WITH_HEADSCALE_SERVER') {
+                        if (-not [string]::IsNullOrWhiteSpace($hsServer)) { $newBypass += $hsServer }
+                    }
+                    elseif ($entry -eq 'REPLACE_WITH_HEADSCALE_BASE_DOMAIN') {
+                        if (-not [string]::IsNullOrWhiteSpace($hsDomain)) { $newBypass += $hsDomain }
+                    }
+                    else {
+                        $newBypass += $entry
+                    }
+                }
+                $ib.platform.http_proxy.bypass_domain = $newBypass
+            }
         }
     }
 
-    # 处理 dns.rules
+    # 2. 处理 dns.rules (MagicDNS 走 local，HeadscaleServer 走 ali)
     if ($null -ne $cfg.dns -and $null -ne $cfg.dns.rules) {
         $newDnsRules = @()
         foreach ($r in $cfg.dns.rules) {
-            $isHsRule = $false
+            $isMagicDns = $false
+            $isHsServer = $false
             if ($null -ne $r.domain_suffix) {
                 foreach ($s in @($r.domain_suffix)) {
-                    if ($s -match '^REPLACE_WITH_HEADSCALE_' -or ($hsDomains.Count -gt 0 -and $s -in $hsDomains)) {
-                        $isHsRule = $true
+                    if ($s -eq 'REPLACE_WITH_HEADSCALE_BASE_DOMAIN' -or (-not [string]::IsNullOrWhiteSpace($hsDomain) -and $s -eq $hsDomain)) {
+                        $isMagicDns = $true
+                        break
+                    }
+                    if ($s -eq 'REPLACE_WITH_HEADSCALE_SERVER' -or (-not [string]::IsNullOrWhiteSpace($hsServer) -and $s -eq $hsServer)) {
+                        $isHsServer = $true
                         break
                     }
                 }
             }
-            if ($isHsRule) {
-                if ($hsDomains.Count -gt 0) {
-                    $r.domain_suffix = @($hsDomains)
+            if ($isMagicDns) {
+                if (-not [string]::IsNullOrWhiteSpace($hsDomain)) {
+                    $r.domain_suffix = @($hsDomain)
                     $newDnsRules += $r
                 }
-            } else {
+            }
+            elseif ($isHsServer) {
+                if (-not [string]::IsNullOrWhiteSpace($hsServer)) {
+                    $r.domain_suffix = @($hsServer)
+                    $newDnsRules += $r
+                }
+            }
+            else {
                 $newDnsRules += $r
             }
         }
         $cfg.dns.rules = $newDnsRules
     }
 
-    # 处理 route.rules
+    # 3. 处理 route.rules (放行 Headscale 域名直连)
     if ($null -ne $cfg.route -and $null -ne $cfg.route.rules) {
         $newRouteRules = @()
+        $activeHsDomains = @()
+        if (-not [string]::IsNullOrWhiteSpace($hsServer)) { $activeHsDomains += $hsServer }
+        if (-not [string]::IsNullOrWhiteSpace($hsDomain)) { $activeHsDomains += $hsDomain }
+
         foreach ($r in $cfg.route.rules) {
-            $isHsRule = $false
+            $isHsRoute = $false
             if ($null -ne $r.domain_suffix) {
                 foreach ($s in @($r.domain_suffix)) {
-                    if ($s -match '^REPLACE_WITH_HEADSCALE_' -or ($hsDomains.Count -gt 0 -and $s -in $hsDomains)) {
-                        $isHsRule = $true
+                    if ($s -match '^REPLACE_WITH_HEADSCALE_' -or ($activeHsDomains.Count -gt 0 -and $s -in $activeHsDomains)) {
+                        $isHsRoute = $true
                         break
                     }
                 }
             }
-            if ($isHsRule) {
-                if ($hsDomains.Count -gt 0) {
-                    $r.domain_suffix = @($hsDomains)
+            if ($isHsRoute) {
+                if ($activeHsDomains.Count -gt 0) {
+                    $r.domain_suffix = @($activeHsDomains)
                     $newRouteRules += $r
                 }
-            } else {
+            }
+            else {
                 $newRouteRules += $r
             }
         }
@@ -256,7 +292,28 @@ function Update-Mihomo([string]$Path) {
         password = @(4, $Values.Hy2Password)
         sni = @(4, $Values.Hy2Sni)
     }
-    return Set-YamlField $text 'secret' 0 $Values.MihomoApiSecret
+    $text = Set-YamlField $text 'secret' 0 $Values.MihomoApiSecret
+
+    # 处理可选 Headscale 域名规则
+    $hsServer = [string]$Values['HeadscaleServer']
+    if ($hsServer -match '^REPLACE_WITH_') { $hsServer = '' } else { $hsServer = $hsServer.Trim() }
+    
+    $hsDomain = [string]$Values['HeadscaleBaseDomain']
+    if ($hsDomain -match '^REPLACE_WITH_') { $hsDomain = '' } else { $hsDomain = $hsDomain.Trim() }
+
+    if (-not [string]::IsNullOrWhiteSpace($hsServer)) {
+        $text = $text -replace '(?m)^\s*-\s*DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_SERVER,', "  - DOMAIN-SUFFIX,$hsServer,"
+    } else {
+        $text = $text -replace '(?m)^\s*-\s*DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_SERVER,[^\r\n]*\r?\n?', ''
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($hsDomain)) {
+        $text = $text -replace '(?m)^\s*-\s*DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_BASE_DOMAIN,', "  - DOMAIN-SUFFIX,$hsDomain,"
+    } else {
+        $text = $text -replace '(?m)^\s*-\s*DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_BASE_DOMAIN,[^\r\n]*\r?\n?', ''
+    }
+
+    return $text
 }
 
 Assert-Values

@@ -54,8 +54,13 @@
       },
       {
         "domain_suffix": [
-          "REPLACE_WITH_HEADSCALE_SERVER",
           "REPLACE_WITH_HEADSCALE_BASE_DOMAIN"
+        ],
+        "server": "local"
+      },
+      {
+        "domain_suffix": [
+          "REPLACE_WITH_HEADSCALE_SERVER"
         ],
         "server": "ali"
       },
@@ -200,6 +205,12 @@
             "rules": [
               {
                 "ip_is_private": true
+              },
+              {
+                "ip_cidr": [
+                  "100.64.0.0/10",
+                  "fd7a:115c:a1e0::/48"
+                ]
               },
               {
                 "rule_set": "geoip-cn"
@@ -467,6 +478,9 @@
       "route_exclude_address": [
         "100.64.0.0/10",
         "fd7a:115c:a1e0::/48"
+      ],
+      "exclude_interface": [
+        "tailscale0"
       ]
     },
     {

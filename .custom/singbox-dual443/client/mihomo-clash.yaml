@@ -55,6 +55,9 @@ tun:
   auto-route: true
   auto-detect-interface: true
   strict-route: true
+  route-exclude-address:
+    - 100.64.0.0/10
+    - fd7a:115c:a1e0::/48
 sniffer:
   enable: true
   override-destination: false
@@ -121,6 +124,12 @@ proxy-groups:
       - 自建-Hy2
       - 直连
 rules:
+  - DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_SERVER,直连
+  - DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_BASE_DOMAIN,直连
+  - IP-CIDR,100.64.0.0/10,直连,no-resolve
+  - IP-CIDR6,fd7a:115c:a1e0::/48,直连,no-resolve
+  - DST-PORT,3478,直连,no-resolve
+  - DST-PORT,41641,直连,no-resolve
   - RULE-SET,private_ip,直连,no-resolve
   - RULE-SET,private_domain,直连
   - RULE-SET,ai_domain,默认代理
