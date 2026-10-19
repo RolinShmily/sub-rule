@@ -118,203 +118,8 @@
       "type": "selector",
       "outbounds": [
         "自建-Reality",
-        "自建-Hy2",
-        "自动选择",
-        "直连"
-      ]
-    },
-    {
-      "tag": "AI",
-      "type": "selector",
-      "outbounds": [
-        "默认代理",
-        "自建-Reality",
-        "自建-Hy2",
-        "自动选择",
-        "直连"
-      ]
-    },
-    {
-      "tag": "YouTube",
-      "type": "selector",
-      "outbounds": [
-        "默认代理",
-        "自建-Reality",
-        "自建-Hy2",
-        "自动选择",
-        "直连"
-      ]
-    },
-    {
-      "tag": "Google",
-      "type": "selector",
-      "outbounds": [
-        "默认代理",
-        "自建-Reality",
-        "自建-Hy2",
-        "自动选择",
-        "直连"
-      ]
-    },
-    {
-      "tag": "Github",
-      "type": "selector",
-      "outbounds": [
-        "默认代理",
-        "自建-Reality",
-        "自建-Hy2",
-        "自动选择",
-        "直连"
-      ]
-    },
-    {
-      "tag": "Telegram",
-      "type": "selector",
-      "outbounds": [
-        "默认代理",
-        "自建-Reality",
-        "自建-Hy2",
-        "自动选择",
-        "直连"
-      ]
-    },
-    {
-      "tag": "TikTok",
-      "type": "selector",
-      "outbounds": [
-        "默认代理",
-        "自建-Reality",
-        "自建-Hy2",
-        "自动选择",
-        "直连"
-      ]
-    },
-    {
-      "tag": "Netflix",
-      "type": "selector",
-      "outbounds": [
-        "默认代理",
-        "自建-Reality",
-        "自建-Hy2",
-        "自动选择",
-        "直连"
-      ]
-    },
-    {
-      "tag": "Wallet",
-      "type": "selector",
-      "outbounds": [
-        "默认代理",
-        "自建-Reality",
-        "自建-Hy2",
-        "自动选择",
-        "直连"
-      ]
-    },
-    {
-      "tag": "Steam",
-      "type": "selector",
-      "outbounds": [
-        "默认代理",
-        "自建-Reality",
-        "自建-Hy2",
-        "自动选择",
-        "直连"
-      ]
-    },
-    {
-      "tag": "Microsoft",
-      "type": "selector",
-      "outbounds": [
-        "默认代理",
-        "自建-Reality",
-        "自建-Hy2",
-        "自动选择",
-        "直连"
-      ]
-    },
-    {
-      "tag": "OneDrive",
-      "type": "selector",
-      "outbounds": [
-        "默认代理",
-        "自建-Reality",
-        "自建-Hy2",
-        "自动选择",
-        "直连"
-      ]
-    },
-    {
-      "tag": "Apple",
-      "type": "selector",
-      "outbounds": [
-        "默认代理",
-        "自建-Reality",
-        "自建-Hy2",
-        "自动选择",
-        "直连"
-      ]
-    },
-    {
-      "tag": "漏网之鱼",
-      "type": "selector",
-      "outbounds": [
-        "默认代理",
-        "自建-Reality",
-        "自建-Hy2",
-        "自动选择",
-        "直连"
-      ]
-    },
-    {
-      "tag": "手动选择",
-      "type": "selector",
-      "outbounds": [
-        "自建-Reality",
-        "自建-Hy2",
-        "直连"
-      ]
-    },
-    {
-      "tag": "自动选择",
-      "type": "urltest",
-      "outbounds": [
-        "自建-Reality",
         "自建-Hy2"
-      ],
-      "url": "https://clients1.google.com/generate_204",
-      "interval": "30m",
-      "tolerance": 100
-    },
-    {
-      "tag": "GLOBAL",
-      "type": "selector",
-      "outbounds": [
-        "默认代理",
-        "AI",
-        "YouTube",
-        "Google",
-        "Github",
-        "Telegram",
-        "TikTok",
-        "Netflix",
-        "Wallet",
-        "Steam",
-        "Microsoft",
-        "OneDrive",
-        "Apple",
-        "漏网之鱼",
-        "手动选择",
-        "自动选择",
-        "自建-Reality",
-        "自建-Hy2",
-        "直连"
       ]
-    },
-    {
-      "tag": "直连",
-      "type": "direct",
-      "domain_resolver": "ali"
     },
     {
       "tag": "自建-Reality",
@@ -352,6 +157,11 @@
         "server_name": "REPLACE_WITH_HY2_SNI",
         "insecure": false
       }
+    },
+    {
+      "tag": "直连",
+      "type": "direct",
+      "domain_resolver": "ali"
     }
   ],
   "http_clients": [
@@ -462,7 +272,7 @@
       },
       {
         "clash_mode": "Global",
-        "outbound": "GLOBAL"
+        "outbound": "默认代理"
       },
       {
         "rule_set": "geosite-private",
@@ -470,23 +280,23 @@
       },
       {
         "rule_set": "geosite-category-ai-!cn",
-        "outbound": "AI"
+        "outbound": "默认代理"
       },
       {
         "rule_set": "geosite-youtube",
-        "outbound": "YouTube"
+        "outbound": "默认代理"
       },
       {
         "rule_set": "geosite-google",
-        "outbound": "Google"
+        "outbound": "默认代理"
       },
       {
         "rule_set": "geosite-github",
-        "outbound": "Github"
+        "outbound": "默认代理"
       },
       {
         "rule_set": "geosite-onedrive",
-        "outbound": "OneDrive"
+        "outbound": "默认代理"
       },
       {
         "rule_set": "geosite-microsoft@cn",
@@ -494,7 +304,7 @@
       },
       {
         "rule_set": "geosite-microsoft",
-        "outbound": "Microsoft"
+        "outbound": "默认代理"
       },
       {
         "rule_set": "geosite-apple@cn",
@@ -502,35 +312,35 @@
       },
       {
         "rule_set": "geosite-apple",
-        "outbound": "Apple"
+        "outbound": "默认代理"
       },
       {
         "rule_set": "geosite-telegram",
-        "outbound": "Telegram"
+        "outbound": "默认代理"
       },
       {
         "rule_set": "geosite-tiktok",
-        "outbound": "TikTok"
+        "outbound": "默认代理"
       },
       {
         "rule_set": "geosite-netflix",
-        "outbound": "Netflix"
+        "outbound": "默认代理"
       },
       {
         "rule_set": "geosite-paypal",
-        "outbound": "Wallet"
+        "outbound": "默认代理"
       },
       {
         "rule_set": "geosite-binance",
-        "outbound": "Wallet"
+        "outbound": "默认代理"
       },
       {
         "rule_set": "geosite-okx",
-        "outbound": "Wallet"
+        "outbound": "默认代理"
       },
       {
         "rule_set": "geosite-category-cryptocurrency",
-        "outbound": "Wallet"
+        "outbound": "默认代理"
       },
       {
         "rule_set": "geosite-steam@cn",
@@ -538,7 +348,7 @@
       },
       {
         "rule_set": "geosite-steam",
-        "outbound": "Steam"
+        "outbound": "默认代理"
       },
       {
         "rule_set": "geosite-geolocation-!cn",
@@ -550,7 +360,7 @@
       },
       {
         "rule_set": "geoip-telegram",
-        "outbound": "Telegram"
+        "outbound": "默认代理"
       },
       {
         "rule_set": "geoip-cn",
@@ -608,7 +418,7 @@
         "url": "https://gh-proxy.com/https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
       }
     ],
-    "final": "漏网之鱼",
+    "final": "默认代理",
     "default_http_client": "直连下载",
     "auto_detect_interface": true,
     "default_domain_resolver": {

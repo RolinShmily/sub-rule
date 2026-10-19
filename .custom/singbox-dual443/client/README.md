@@ -11,7 +11,7 @@
 | `android.json` | 从仓库 iPhone 移动端模板改造；官方 sing-box for Android 提供 VPN/TUN 实现，移除本机 mixed/API |
 | `mihomo.yaml` | 基于 `config/mihomo/config/mihomo.yaml` 的完整节点/DNS/TUN/嗅探/分流/规则集；TUN 为跨平台基础配置；按 [Mihomo 官方文档](https://wiki.metacubex.one/en/config/) 复核 |
 
-原仓库里的机场订阅入口、空的国家地区节点组被移除；所有业务策略组保留并改为在 Reality、Hy2、自动选择和直连间切换。Mihomo 模板原有的「拒绝非 CN 的 UDP/443」规则被移除，以免应用使用 Hy2 时被误拦。仓库自有的 `fakeipfilter-cn` / `fakeipfilter-!cn` 规则链接已经指向 `RolinShmily/sub-rule` 的 `main/rules/`（sing-box 沿用模板的 `gh-proxy.com` 前缀）；SagerNet 的 `.srs` 和 MetaCubeX 的 `.mrs` 在本 fork 中并不存在，仍引用上游，不能只替换仓库名，否则会 404。其他 DNS、地理规则及第三方 URL 沿用仓库模板，并非重新设计的防泄漏审计；首次使用需能下载远程规则集。
+原仓库里的机场订阅入口、空的国家地区节点组以及冗余的按应用细分策略组（AI、YouTube、Google 等）被移除，对齐上游自建节点专用配置 `linux_mini` 的极简结构：仅保留「默认代理」策略组，在自建 Reality、自建 Hy2 和直连间切换，避免冗余策略组及自动测速在弱网或热点下乱跳。Mihomo 模板原有的「拒绝非 CN 的 UDP/443」规则被移除，以免应用使用 Hy2 时被误拦。仓库自有的 `fakeipfilter-cn` / `fakeipfilter-!cn` 规则链接已经指向 `RolinShmily/sub-rule` 的 `main/rules/`（sing-box 沿用模板的 `gh-proxy.com` 前缀）；SagerNet 的 `.srs` 和 MetaCubeX 的 `.mrs` 在本 fork 中并不存在，仍引用上游，不能只替换仓库名，否则会 404。其他 DNS、地理规则及第三方 URL 沿用仓库模板，并非重新设计的防泄漏审计；首次使用需能下载远程规则集。
 
 ## 必须替换（每份客户端均需一致）
 
@@ -27,7 +27,7 @@
 
 ## 运行边界和验证
 
-- 五份 sing-box 配置保留仓库的远程规则集、DNS、按应用服务分流。Windows/Linux 裸核运行 TUN 需管理员/root 或相应权限；macOS/iPhone/Android 的官方图形客户端由系统授予 VPN 权限。Linux `auto_redirect` 需要 Linux/nftables，在 Windows 上运行 `sing-box check` 会因平台限制失败，必须在 Linux 上检查。
+- 五份 sing-box 配置对齐 `linux_mini` 结构：所有境外应用分流统一汇聚到「默认代理」，最终 fallback (final) 也是「默认代理」，彻底砍掉无意义的空转策略组；国内私网与常用直连服务维持直连。Windows/Linux 裸核运行 TUN 需管理员/root 或相应权限；macOS/iPhone/Android 的官方图形客户端由系统授予 VPN 权限。Linux `auto_redirect` 需要 Linux/nftables，在 Windows 上运行 `sing-box check` 会因平台限制失败，必须在 Linux 上检查。
 - Mihomo YAML 包含通用 `tun.enable: true`、`auto-route` 和 `dns-hijack`，便于具备 TUN 权限的 Linux 裸核接管本机流量。Clash Verge Rev 运行时会按 GUI 的 TUN 开关覆写 `tun.enable`；其他客户端是否覆写取决于具体应用，直接运行裸核则会尝试启用 TUN（需权限）。Linux 网关/路由器若要代理其他设备的转发流量，通常还需 Linux 专属 `auto-redirect`、转发/防火墙等设置；这些不放进通用配置。客户端若自行接管系统 DNS，应核对其运行时配置确实启用了 DNS 劫持；不能只凭 `dns.enable: true` 断言不会泄漏。
 - Windows/Linux/macOS/iPhone sing-box 的本地 mixed HTTP/SOCKS 端口为 `127.0.0.1:2080`（Windows/macOS/iPhone 的系统 HTTP 代理端口已同步）；Android 版本未启用 mixed。Mihomo 的本地 mixed 端口仍为 `127.0.0.1:7890`。Windows/Linux/macOS sing-box 和 Mihomo 的控制 API 均监听本机 `9090`，同时启动前还须调整其中一个 API 端口；即使端口都错开，两个 TUN 同时接管系统流量仍可能造成路由冲突。
 - Mihomo DNS 沿用仓库的 fake-ip 与国内/国外分流：国内域名交给阿里/腾讯 DoH，国外域名经“默认代理”访问 Google DoH；节点域名通过 `proxy-server-nameserver` 直连解析以避免代理启动循环。规则集命中后按服务分组或国内直连。国内 DNS 查询和国内流量会直接连接，故这不是“所有流量都经 VPS”的配置。若你需要强制全局代理或特定 DNS 隐私策略，应进一步定制。
