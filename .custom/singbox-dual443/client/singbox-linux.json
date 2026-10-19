@@ -38,6 +38,12 @@
             "120.53.53.53"
           ]
         }
+      },
+      {
+        "tag": "tailscale-dns",
+        "type": "udp",
+        "server": "100.100.100.100",
+        "detour": "直连-tailscale"
       }
     ],
     "rules": [
@@ -56,7 +62,7 @@
         "domain_suffix": [
           "REPLACE_WITH_HEADSCALE_BASE_DOMAIN"
         ],
-        "server": "local"
+        "server": "tailscale-dns"
       },
       {
         "domain_suffix": [
@@ -174,6 +180,11 @@
       "tag": "直连",
       "type": "direct",
       "domain_resolver": "ali"
+    },
+    {
+      "tag": "直连-tailscale",
+      "type": "direct",
+      "domain_resolver": "tailscale-dns"
     }
   ],
   "http_clients": [
@@ -264,7 +275,13 @@
           "100.64.0.0/10",
           "fd7a:115c:a1e0::/48"
         ],
-        "outbound": "直连"
+        "outbound": "直连-tailscale"
+      },
+      {
+        "domain_suffix": [
+          "REPLACE_WITH_HEADSCALE_BASE_DOMAIN"
+        ],
+        "outbound": "直连-tailscale"
       },
       {
         "port": [
@@ -276,8 +293,7 @@
       },
       {
         "domain_suffix": [
-          "REPLACE_WITH_HEADSCALE_SERVER",
-          "REPLACE_WITH_HEADSCALE_BASE_DOMAIN"
+          "REPLACE_WITH_HEADSCALE_SERVER"
         ],
         "outbound": "直连"
       },

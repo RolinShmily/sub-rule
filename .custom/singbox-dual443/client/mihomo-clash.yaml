@@ -95,7 +95,10 @@ dns:
   direct-nameserver:
     - https://dns.alidns.com/dns-query
     - https://doh.pub/dns-query
+  direct-nameserver-follow-policy: true
   nameserver-policy:
+    '+.REPLACE_WITH_HEADSCALE_BASE_DOMAIN':
+      - 100.100.100.100
     rule-set:cn_domain,private_domain,fakeipfilter_cn,steamcn_domain,microsoftcn_domain,applecn_domain:
       - https://dns.alidns.com/dns-query#disable-qtype-65=true
       - https://doh.pub/dns-query#disable-qtype-65=true
@@ -109,6 +112,7 @@ dns:
     geoip: true
     geoip-code: CN
   fake-ip-filter:
+    - '+.REPLACE_WITH_HEADSCALE_BASE_DOMAIN'
     - rule-set:fakeipfilter_cn
     - rule-set:fakeipfilter_!cn
     - rule-set:private_domain

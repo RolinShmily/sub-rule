@@ -197,7 +197,10 @@ function Update-SingboxClient([string]$Path) {
                         if (-not [string]::IsNullOrWhiteSpace($hsServer)) { $newBypass += $hsServer }
                     }
                     elseif ($entry -eq 'REPLACE_WITH_HEADSCALE_BASE_DOMAIN') {
-                        if (-not [string]::IsNullOrWhiteSpace($hsDomain)) { $newBypass += $hsDomain }
+                        if (-not [string]::IsNullOrWhiteSpace($hsDomain)) {
+                            $newBypass += "*.$hsDomain"
+                            $newBypass += $hsDomain
+                        }
                     }
                     else {
                         $newBypass += $entry
@@ -208,7 +211,7 @@ function Update-SingboxClient([string]$Path) {
         }
     }
 
-    # 2. 处理 dns.rules (MagicDNS 走 local，HeadscaleServer 走 ali)
+    # 2. 处理 dns.rules (MagicDNS 走 tailscale-dns，HeadscaleServer 走 ali)
     if ($null -ne $cfg.dns -and $null -ne $cfg.dns.rules) {
         $newDnsRules = @()
         foreach ($r in $cfg.dns.rules) {
@@ -229,12 +232,14 @@ function Update-SingboxClient([string]$Path) {
             if ($isMagicDns) {
                 if (-not [string]::IsNullOrWhiteSpace($hsDomain)) {
                     $r.domain_suffix = @($hsDomain)
+                    $r.server = 'tailscale-dns'
                     $newDnsRules += $r
                 }
             }
             elseif ($isHsServer) {
                 if (-not [string]::IsNullOrWhiteSpace($hsServer)) {
                     $r.domain_suffix = @($hsServer)
+                    $r.server = 'ali'
                     $newDnsRules += $r
                 }
             }
@@ -245,26 +250,35 @@ function Update-SingboxClient([string]$Path) {
         $cfg.dns.rules = $newDnsRules
     }
 
-    # 3. 处理 route.rules (放行 Headscale 域名直连)
+    # 3. 处理 route.rules (精准分离内网与公网直连)
     if ($null -ne $cfg.route -and $null -ne $cfg.route.rules) {
         $newRouteRules = @()
-        $activeHsDomains = @()
-        if (-not [string]::IsNullOrWhiteSpace($hsServer)) { $activeHsDomains += $hsServer }
-        if (-not [string]::IsNullOrWhiteSpace($hsDomain)) { $activeHsDomains += $hsDomain }
-
         foreach ($r in $cfg.route.rules) {
-            $isHsRoute = $false
+            $isInnerDomain = $false
+            $isServerDomain = $false
             if ($null -ne $r.domain_suffix) {
                 foreach ($s in @($r.domain_suffix)) {
-                    if ($s -match '^REPLACE_WITH_HEADSCALE_' -or ($activeHsDomains.Count -gt 0 -and $s -in $activeHsDomains)) {
-                        $isHsRoute = $true
+                    if ($s -eq 'REPLACE_WITH_HEADSCALE_BASE_DOMAIN' -or (-not [string]::IsNullOrWhiteSpace($hsDomain) -and $s -eq $hsDomain)) {
+                        $isInnerDomain = $true
+                        break
+                    }
+                    if ($s -eq 'REPLACE_WITH_HEADSCALE_SERVER' -or (-not [string]::IsNullOrWhiteSpace($hsServer) -and $s -eq $hsServer)) {
+                        $isServerDomain = $true
                         break
                     }
                 }
             }
-            if ($isHsRoute) {
-                if ($activeHsDomains.Count -gt 0) {
-                    $r.domain_suffix = @($activeHsDomains)
+            if ($isInnerDomain) {
+                if (-not [string]::IsNullOrWhiteSpace($hsDomain)) {
+                    $r.domain_suffix = @($hsDomain)
+                    $r.outbound = '直连-tailscale'
+                    $newRouteRules += $r
+                }
+            }
+            elseif ($isServerDomain) {
+                if (-not [string]::IsNullOrWhiteSpace($hsServer)) {
+                    $r.domain_suffix = @($hsServer)
+                    $r.outbound = '直连'
                     $newRouteRules += $r
                 }
             }
@@ -301,6 +315,7 @@ function Update-Mihomo([string]$Path) {
     $hsDomain = [string]$Values['HeadscaleBaseDomain']
     if ($hsDomain -match '^REPLACE_WITH_') { $hsDomain = '' } else { $hsDomain = $hsDomain.Trim() }
 
+    # 1. rules 规则处理
     if (-not [string]::IsNullOrWhiteSpace($hsServer)) {
         $text = $text -replace '(?m)^\s*-\s*DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_SERVER,', "  - DOMAIN-SUFFIX,$hsServer,"
     } else {
@@ -311,6 +326,15 @@ function Update-Mihomo([string]$Path) {
         $text = $text -replace '(?m)^\s*-\s*DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_BASE_DOMAIN,', "  - DOMAIN-SUFFIX,$hsDomain,"
     } else {
         $text = $text -replace '(?m)^\s*-\s*DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_BASE_DOMAIN,[^\r\n]*\r?\n?', ''
+    }
+
+    # 2. fake-ip-filter 与 nameserver-policy 处理
+    if (-not [string]::IsNullOrWhiteSpace($hsDomain)) {
+        $text = $text -replace "(?m)^\s*-\s*'\+\.REPLACE_WITH_HEADSCALE_BASE_DOMAIN'", "    - '+.$hsDomain'"
+        $text = $text -replace "(?m)^\s*'\+\.REPLACE_WITH_HEADSCALE_BASE_DOMAIN':", "    '+.$hsDomain':"
+    } else {
+        $text = $text -replace "(?m)^\s*-\s*'\+\.REPLACE_WITH_HEADSCALE_BASE_DOMAIN'[^\r\n]*\r?\n?", ''
+        $text = $text -replace "(?m)^\s*'\+\.REPLACE_WITH_HEADSCALE_BASE_DOMAIN':[^\r\n]*\r?\n\s*-\s*100\.100\.100\.100\r?\n?", ''
     }
 
     return $text
