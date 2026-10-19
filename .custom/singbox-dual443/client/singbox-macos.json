@@ -53,6 +53,13 @@
         "server": "ali"
       },
       {
+        "domain_suffix": [
+          "REPLACE_WITH_HEADSCALE_SERVER",
+          "REPLACE_WITH_HEADSCALE_BASE_DOMAIN"
+        ],
+        "server": "ali"
+      },
+      {
         "clash_mode": "Global",
         "server": "fakeip"
       },
@@ -174,36 +181,6 @@
     "rules": [
       {
         "type": "logical",
-        "mode": "and",
-        "rules": [
-          {
-            "port": [
-              53,
-              853
-            ],
-            "invert": true
-          },
-          {
-            "clash_mode": "Global",
-            "invert": true
-          },
-          {
-            "type": "logical",
-            "mode": "or",
-            "rules": [
-              {
-                "ip_is_private": true
-              },
-              {
-                "rule_set": "geoip-cn"
-              }
-            ]
-          }
-        ],
-        "action": "bypass"
-      },
-      {
-        "type": "logical",
         "mode": "or",
         "rules": [
           {
@@ -239,6 +216,28 @@
       },
       {
         "ip_is_private": true,
+        "outbound": "直连"
+      },
+      {
+        "ip_cidr": [
+          "100.64.0.0/10",
+          "fd7a:115c:a1e0::/48"
+        ],
+        "outbound": "直连"
+      },
+      {
+        "port": [
+          3478,
+          41641
+        ],
+        "network": "udp",
+        "outbound": "直连"
+      },
+      {
+        "domain_suffix": [
+          "REPLACE_WITH_HEADSCALE_SERVER",
+          "REPLACE_WITH_HEADSCALE_BASE_DOMAIN"
+        ],
         "outbound": "直连"
       },
       {
@@ -434,7 +433,17 @@
         "fdfe:dcba:9876::1/126"
       ],
       "auto_route": true,
-      "auto_redirect": true
+      "platform": {
+        "http_proxy": {
+          "enabled": true,
+          "server": "127.0.0.1",
+          "server_port": 2080
+        }
+      },
+      "route_exclude_address": [
+        "100.64.0.0/10",
+        "fd7a:115c:a1e0::/48"
+      ]
     },
     {
       "tag": "mixed-in",
@@ -456,16 +465,11 @@
   ],
   "experimental": {
     "cache_file": {
-      "enabled": true,
-      "store_dns": true
+      "enabled": true
     }
   },
   "certificate": {
     "store": "chrome"
-  },
-  "ntp": {
-    "enabled": true,
-    "server": "time.apple.com"
   },
   "log": {
     "disabled": false,

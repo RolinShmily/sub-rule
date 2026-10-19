@@ -53,6 +53,13 @@
         "server": "ali"
       },
       {
+        "domain_suffix": [
+          "REPLACE_WITH_HEADSCALE_SERVER",
+          "REPLACE_WITH_HEADSCALE_BASE_DOMAIN"
+        ],
+        "server": "ali"
+      },
+      {
         "clash_mode": "Global",
         "server": "fakeip"
       },
@@ -209,6 +216,28 @@
       },
       {
         "ip_is_private": true,
+        "outbound": "直连"
+      },
+      {
+        "ip_cidr": [
+          "100.64.0.0/10",
+          "fd7a:115c:a1e0::/48"
+        ],
+        "outbound": "直连"
+      },
+      {
+        "port": [
+          3478,
+          41641
+        ],
+        "network": "udp",
+        "outbound": "直连"
+      },
+      {
+        "domain_suffix": [
+          "REPLACE_WITH_HEADSCALE_SERVER",
+          "REPLACE_WITH_HEADSCALE_BASE_DOMAIN"
+        ],
         "outbound": "直连"
       },
       {
@@ -410,7 +439,11 @@
           "server": "127.0.0.1",
           "server_port": 2080
         }
-      }
+      },
+      "route_exclude_address": [
+        "100.64.0.0/10",
+        "fd7a:115c:a1e0::/48"
+      ]
     },
     {
       "tag": "mixed-in",

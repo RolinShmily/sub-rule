@@ -4,12 +4,12 @@
 
 | 文件 | 来源及用途 |
 | --- | --- |
-| `windows.json` | 基于 `config/singbox/1.14X/windows.json` 的完整 DNS/TUN/规则/服务策略配置 |
-| `linux.json` | 基于 `config/singbox/1.14X/linux.json`，保留 Linux `auto_redirect` |
-| `iphone.json` | 基于 `config/singbox/1.14X/iphone.json`，供官方 Apple 客户端导入 |
-| `macos.json` | 基于同一 Apple 平台模板，增加仅监听本机的桌面控制 API；供官方 sing-box for macOS (SFM) 导入 |
-| `android.json` | 从仓库 iPhone 移动端模板改造；官方 sing-box for Android 提供 VPN/TUN 实现，移除本机 mixed/API |
-| `mihomo.yaml` | 基于 `config/mihomo/config/mihomo.yaml` 的完整节点/DNS/TUN/嗅探/分流/规则集；TUN 为跨平台基础配置；按 [Mihomo 官方文档](https://wiki.metacubex.one/en/config/) 复核 |
+| `singbox-windows.json` | 基于 `config/singbox/1.14X/windows.json`，对齐自建 mini 架构；内置 Tailscale/Headscale 直连防劫持 |
+| `singbox-linux.json` | 基于 `config/singbox/1.14X/linux.json`，保留 Linux `auto_redirect` 与 Tailscale/Headscale 绕行 |
+| `singbox-macos.json` | 基于 Apple 平台模板，增加本机 API，内置 Tailscale/Headscale 绕行；供官方 SFM 导入 |
+| `singbox-iphone.json` | 基于官方 Apple 移动端模板；供官方 iOS 客户端导入 |
+| `singbox-android.json` | 官方 Android 客户端专用，由系统 VPN 框架提供接管，无本机 mixed/API |
+| `mihomo-clash.yaml` | 基于 `config/mihomo/config/mihomo.yaml` 对齐 mini 架构；通用 TUN、节点与规则集适配 |
 
 原仓库里的机场订阅入口、空的国家地区节点组以及冗余的按应用细分策略组（AI、YouTube、Google 等）被移除，对齐上游自建节点专用配置 `linux_mini` 的极简结构：仅保留「默认代理」策略组，在自建 Reality、自建 Hy2 和直连间切换，避免冗余策略组及自动测速在弱网或热点下乱跳。Mihomo 模板原有的「拒绝非 CN 的 UDP/443」规则被移除，以免应用使用 Hy2 时被误拦。仓库自有的 `fakeipfilter-cn` / `fakeipfilter-!cn` 规则链接已经指向 `RolinShmily/sub-rule` 的 `main/rules/`（sing-box 沿用模板的 `gh-proxy.com` 前缀）；SagerNet 的 `.srs` 和 MetaCubeX 的 `.mrs` 在本 fork 中并不存在，仍引用上游，不能只替换仓库名，否则会 404。其他 DNS、地理规则及第三方 URL 沿用仓库模板，并非重新设计的防泄漏审计；首次使用需能下载远程规则集。
 
@@ -22,6 +22,7 @@
 - `01234567` → 服务端 Reality `short_id`；请在所有配置中改成一致的十六进制值。
 - `www.cloudflare.com` → 仅当你改动服务端 Reality 握手目标时，才对应修改两类客户端的 Reality `server_name` / `servername`；不要改成 Hy2 证书域名，除非服务端也相应修改。
 - `REPLACE_WITH_API_SECRET` → Windows/Linux/macOS sing-box 的本机 API 和 Mihomo 本机控制端口各自的强随机密钥；这不是节点密码。移动端 sing-box 无此字段。
+- `REPLACE_WITH_HEADSCALE_SERVER` / `REPLACE_WITH_HEADSCALE_BASE_DOMAIN` → （可选）自建 Headscale 控制面/DERP 域名及 MagicDNS 根域名（如 `hs.example.com`、`tail.net`）。若无自建 Headscale，脚本中保持留空 `''` 即可，脚本会自动清理对应域名规则，不会报错。桌面端已默认排除 Tailscale 标准内网（`100.64.0.0/10`、`fd7a:115c:a1e0::/48`）及放行 STUN/WireGuard 端口（`3478`、`41641`），保障 P2P 穿透畅通。
 
 建议在 `.custom/singbox-dual443/Update-SingboxDual443.ps1` 的 `$Values` 中一次填写全部字段，再用 `-Preview` 预检后原地批量覆写；证书路径、Reality 私钥等字段的说明见 [`../README.md`](../README.md)。使用 `sing-box generate reality-keypair` 产生新密钥对；不要复制原仓库的演示密钥。脚本及客户端文件包含可连接节点的密码，**完整 Mihomo YAML 作为订阅地址发布时必须限制访问**，不可上传到公开 Git 或无鉴权静态站点。
 

@@ -33,11 +33,16 @@ $Values = @{
     KeyPath              = 'REPLACE_WITH_KEY_PATH'               # Debian privkey.pem 绝对路径
     SingboxApiSecret     = 'REPLACE_WITH_SINGBOX_API_SECRET'     # 桌面端本机控制 API
     MihomoApiSecret      = 'REPLACE_WITH_MIHOMO_API_SECRET'      # Mihomo 本机控制 API
+    
+    # --- 可选：Headscale / Tailscale 自建组网直连（若不使用自建 Headscale，保持 '' 或占位符即可） ---
+    HeadscaleServer      = 'REPLACE_WITH_HEADSCALE_SERVER'      # 例如 'hs.example.com'，为空时自动剔除对应域名规则
+    HeadscaleBaseDomain  = 'REPLACE_WITH_HEADSCALE_BASE_DOMAIN'  # 例如 'tail.net'，为空时自动剔除对应域名规则
 }
 
 function Assert-Values {
+    $optionalKeys = @('HeadscaleServer', 'HeadscaleBaseDomain')
     foreach ($key in $Values.Keys) {
-        if ($key -eq 'HandshakePort') { continue }
+        if ($key -eq 'HandshakePort' -or $key -in $optionalKeys) { continue }
         if ([string]::IsNullOrWhiteSpace([string]$Values[$key]) -or
             [string]$Values[$key] -match '^REPLACE_WITH_') {
             throw "请先在脚本头部填写 $key；未修改任何配置。"
@@ -66,6 +71,14 @@ function Assert-Values {
     foreach ($key in @('NodeAddress', 'Hy2Sni', 'RealitySni', 'HandshakeHost')) {
         if ([string]$Values[$key] -match '[\s/]') {
             throw "$key 只能填主机名或 IP，不要带协议或路径；未修改任何配置。"
+        }
+    }
+    foreach ($key in $optionalKeys) {
+        $val = [string]$Values[$key]
+        if (-not [string]::IsNullOrWhiteSpace($val) -and ($val -notmatch '^REPLACE_WITH_')) {
+            if ($val -match '[\s/:]') {
+                throw "$key 只能填主机名或域名（如 hs.example.com），不要带协议、路径或端口；未修改任何配置。"
+            }
         }
     }
     foreach ($key in @('Hy2Password', 'SingboxApiSecret', 'MihomoApiSecret')) {
@@ -166,6 +179,66 @@ function Update-SingboxClient([string]$Path) {
         Assert-Field $service 'secret' "$Path API"
         $service.secret = $Values.SingboxApiSecret
     }
+
+    # 处理可选 Headscale / Tailscale 直连域名
+    $hsDomains = @()
+    foreach ($k in @('HeadscaleServer', 'HeadscaleBaseDomain')) {
+        $v = [string]$Values[$k]
+        if (-not [string]::IsNullOrWhiteSpace($v) -and ($v -notmatch '^REPLACE_WITH_')) {
+            $hsDomains += $v.Trim()
+        }
+    }
+
+    # 处理 dns.rules
+    if ($null -ne $cfg.dns -and $null -ne $cfg.dns.rules) {
+        $newDnsRules = @()
+        foreach ($r in $cfg.dns.rules) {
+            $isHsRule = $false
+            if ($null -ne $r.domain_suffix) {
+                foreach ($s in @($r.domain_suffix)) {
+                    if ($s -match '^REPLACE_WITH_HEADSCALE_' -or ($hsDomains.Count -gt 0 -and $s -in $hsDomains)) {
+                        $isHsRule = $true
+                        break
+                    }
+                }
+            }
+            if ($isHsRule) {
+                if ($hsDomains.Count -gt 0) {
+                    $r.domain_suffix = @($hsDomains)
+                    $newDnsRules += $r
+                }
+            } else {
+                $newDnsRules += $r
+            }
+        }
+        $cfg.dns.rules = $newDnsRules
+    }
+
+    # 处理 route.rules
+    if ($null -ne $cfg.route -and $null -ne $cfg.route.rules) {
+        $newRouteRules = @()
+        foreach ($r in $cfg.route.rules) {
+            $isHsRule = $false
+            if ($null -ne $r.domain_suffix) {
+                foreach ($s in @($r.domain_suffix)) {
+                    if ($s -match '^REPLACE_WITH_HEADSCALE_' -or ($hsDomains.Count -gt 0 -and $s -in $hsDomains)) {
+                        $isHsRule = $true
+                        break
+                    }
+                }
+            }
+            if ($isHsRule) {
+                if ($hsDomains.Count -gt 0) {
+                    $r.domain_suffix = @($hsDomains)
+                    $newRouteRules += $r
+                }
+            } else {
+                $newRouteRules += $r
+            }
+        }
+        $cfg.route.rules = $newRouteRules
+    }
+
     return $cfg | ConvertTo-Json -Depth 100
 }
 

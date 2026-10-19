@@ -20,6 +20,7 @@
 | `Hy2Password` | Hy2 登录密码；服务端与两类客户端一致 |
 | `CertificatePath` / `KeyPath` | Debian VPS 上真实证书链和私钥的绝对路径；对应 `REPLACE_WITH_CERTIFICATE_PATH` / `REPLACE_WITH_KEY_PATH`，必须让 sing-box 进程可读 |
 | `SingboxApiSecret` / `MihomoApiSecret` | 两类客户端的本机控制 API 密钥，不是节点密码 |
+| `HeadscaleServer` / `HeadscaleBaseDomain` | （可选）Headscale 控制面/DERP 域名及 MagicDNS 根域名；**若不使用可留空 `''`**，脚本会自动忽略且不报错 |
 
 生成 UUID、Reality 密钥对和 Hy2 强随机密码（在私有终端执行，避免记录到公开日志）：
 
@@ -42,6 +43,6 @@ pwsh -File .custom/singbox-dual443/Update-SingboxDual443.ps1
 
 脚本递归检测本目录及子目录中的 JSON/YAML，按节点类型、标签和字段定位；不匹配的文件跳过。修改脚本值后可以再次运行；它不会修改 README、远程规则集地址或仓库原版配置。脚本不替你申请证书或验证服务器可达。**原地覆写会移除模板占位符**；请自己备份原始模板，勿把填有真实私钥/密码的脚本与配置提交到 Git。若在 Git 工作目录使用，可用 `git status --short` 检查待提交文件。
 
-在相应目标系统上运行 `sing-box check -c server.json` 或 `sing-box check -c client/windows.json`（依平台选择）。服务端证书路径必须存在且可读；Linux 客户端 `auto_redirect` 必须在 Linux 上检查。Mihomo 请用实际内核/客户端核验；语法检查不能代替证书、DNS、规则集下载与连通性测试。
+在相应目标系统上运行 `sing-box check -c server.json` 或 `sing-box check -c client/singbox-windows.json`（依平台选择）。服务端证书路径必须存在且可读；Linux 客户端 `auto_redirect` 必须在 Linux 上检查。Mihomo 请用实际内核/客户端核验；语法检查不能代替证书、DNS、规则集下载与连通性测试。
 
 字段依据：[sing-box VLESS 入站](https://sing-box.sagernet.org/configuration/inbound/vless/)、[Hy2 入站](https://sing-box.sagernet.org/configuration/inbound/hysteria2/)、[Reality 与证书 TLS](https://sing-box.sagernet.org/configuration/shared/tls/)。
