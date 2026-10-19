@@ -1,8 +1,9 @@
 # sing-box 1.14：Debian VPS 双 443
 
 - `server.json`：基于仓库 `config/singbox/1.14X/VPS/server.json` 裁剪的服务端，VLESS-Reality 监听 **TCP 443**，Hysteria2 监听 **UDP 443**（无 Salamander）。Nginx 的 HTTPS 伪装站独立监听 TCP 8443，不会自动成为 Reality 握手目标。
-- `client/`：Windows、Linux、macOS、iPhone、Android 的完整 sing-box 客户端，以及完整 Mihomo YAML。细节见 [`client/README.md`](client/README.md)。
-- `Update-SingboxDual443.ps1`：递归扫描本目录及子目录的 `.json`、`.yaml`，只覆写识别出的双 443 配置；脚本和生成后的配置都可能含明文密钥，**不要提交到公开仓库**。
+- `client/`：通用双栈客户端（Windows、Linux、macOS、iPhone、Android 及 Mihomo YAML），细节见 [`client/README.md`](client/README.md)。
+- `server_v4only.json` 与 `client_v4only/`：**专为无 IPv6 的纯 IPv4 海外 VPS 打造的加固版本**。在客户端本地 0ms 截断公网 IPv6 请求，触发 Happy Eyeballs 自动走 IPv4，并在 VPS 端配置安全拒绝，彻底消除 `remote error: dial tcp network unreachable` 错误。细节见 [`client_v4only/README.md`](client_v4only/README.md)。
+- `Update-SingboxDual443.ps1`：递归扫描本目录及子目录的 `.json`、`.yaml`，自动识别上述所有通用版与 v4only 版配置并批量原地覆写；脚本和生成后的配置都可能含明文密钥，**不要提交到公开仓库**。
 
 原版服务端另有 AnyTLS、TUIC 等其他入站和 Cloudflare ACME；这里只保留 VLESS-Reality 与 Hy2。保留原版 Reality 的 Vision 和 `multiplex.padding`，客户端也开启对应的 padding。既然你已有证书，Hy2 TLS 直接使用 `certificate_path` 和 `key_path`；两个字段现在都是显式模板占位符。
 
@@ -37,7 +38,7 @@ openssl rand -hex 32
 ```powershell
 # 先填脚本头部；预检所有配置，不写文件，不输出凭据
 pwsh -File .custom/singbox-dual443/Update-SingboxDual443.ps1 -Preview
-# 递归识别双 443 配置，原地覆写（当前目录有 server.json 和 client/ 下六份配置）
+# 递归识别双 443 配置，原地覆写（包含通用版与 v4only 版全部配置文件）
 pwsh -File .custom/singbox-dual443/Update-SingboxDual443.ps1
 ```
 

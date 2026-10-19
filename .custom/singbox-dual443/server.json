@@ -25,7 +25,9 @@
             "server_port": 443
           },
           "private_key": "REPLACE_WITH_REALITY_PRIVATE_KEY",
-          "short_id": ["01234567"]
+          "short_id": [
+            "01234567"
+          ]
         }
       },
       "multiplex": {
@@ -52,7 +54,10 @@
     }
   ],
   "outbounds": [
-    {"tag": "direct", "type": "direct"}
+    {
+      "tag": "direct",
+      "type": "direct"
+    }
   ],
   "route": {
     "final": "direct"
