@@ -70,7 +70,7 @@ WantedBy=multi-user.target
    - 规则层内置公网 IPv6 本地拦截（`ip_version: 6 -> reject`），配合应用层 Happy Eyeballs 瞬时秒退回到 IPv4，杜绝死数据包发往海外 VPS。
 2. **局域网监听扩展**：
    - `mixed-in`：监听 `0.0.0.0:2080`，局域网内其他设备如需显式代理可直接指向 `192.168.22.1:2080`。
-   - `api`：监听 `0.0.0.0:9090`，局域网内的 Windows 电脑可通过 Web 控制面板（如 metacubexd / yacd）输入 `http://192.168.22.1:9090` 远程监控管理 Debian 上的 sing-box 状态。
+   - `api`：监听 `0.0.0.0:9090`，默认开启 Web Dashboard（`/etc/sing-box/dashboard`）。局域网内的 Windows 电脑可通过浏览器直接访问 `http://192.168.22.1:9090/ui`，或在 Web 控制面板（如 metacubexd / yacd）输入该地址远程监控管理 Debian 上的 sing-box 状态。
 3. **排除网段（`route_exclude_address`）**：
    - `192.168.0.0/16`：涵盖 `br-lan` 局域网（`192.168.22.0/24`）及常用私网。
    - `172.16.0.0/12`：标准 RFC 1918 私网网段。

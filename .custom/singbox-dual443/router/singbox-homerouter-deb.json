@@ -530,7 +530,9 @@
       "listen_port": 9090,
       "secret": "REPLACE_WITH_API_SECRET",
       "dashboard": {
-        "enabled": false
+        "enabled": true,
+        "path": "/etc/sing-box/dashboard",
+        "download_url": "https://gh-proxy.com/https://github.com/SagerNet/sing-box-dashboard/archive/refs/heads/gh-pages.zip"
       }
     }
   ],
