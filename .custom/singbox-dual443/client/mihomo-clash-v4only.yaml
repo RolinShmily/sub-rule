@@ -1,6 +1,22 @@
-# 源自 config/mihomo/config/mihomo.yaml，保留其 DNS、分流及规则集。
-# 删除机场订阅和空地区组；通用 TUN 已启用。Clash Verge Rev 可通过 GUI 开关覆写 tun.enable。
-# 凭据字段与 .custom/singbox-dual443/server.json 一致；勿公开发布填入真实凭据的配置。
+# ==============================================================================
+# 纯 IPv4 VPS 专属客户端 Mihomo 配置文件 (v4only 加固版)
+#
+# 核心特性：
+# 1. 结构极简：对齐 linux_mini 极简结构，仅保留单一「Proxy」选择组（Reality / Hysteria2 / Direct）；
+# 2. 纯 IPv4 加固：在本地 0ms 截断拦截公网 IPv6 请求，触发 Happy Eyeballs 秒回退走 IPv4，
+#    彻底杜绝向无 IPv6 的海外 VPS 发送死数据包所引发的 dial tcp network unreachable 错误；
+# 3. 应急直连：Proxy 策略组内置 Direct，两节点同时故障时在面板一键切换直连，无需修改配置；
+# 4. 局域网独立：allow-lan 为 false，仅监听本机 127.0.0.1:7890 与 9090；
+# 5. Web Dashboard：预置 metacubexd 面板（ui 目录），支持通过 RuleSetProxy 镜像加速下载；
+# 6. Tailscale / Headscale 穿透：放行 STUN/WireGuard 端口（3478, 41641），保留内网 IPv6 直通；
+# 7. 国内镜像直连：gh-proxy 强制走 Direct 出站与国内 DoH 解析，杜绝冷启动拉取规则集死锁。
+#
+# 凭据字段由 Update-SingboxDual443.sh / .ps1 自动识别并批量替换；切勿公开发布含真实凭据的文件。
+# ==============================================================================
+
+# ==============================================================================
+# 1. 代理节点配置 (Proxies)
+# ==============================================================================
 proxies:
   - name: Reality
     type: vless
@@ -16,9 +32,10 @@ proxies:
     reality-opts:
       public-key: REPLACE_WITH_REALITY_PUBLIC_KEY
       short-id: '01234567'
+    # 注意：使用 xtls-rprx-vision 流控时严禁开启 smux 多路复用，否则会破坏 TLS 记录层填充导致协议断流
     smux:
-      enabled: true
-      padding: true
+      enabled: false
+
   - name: Hysteria2
     type: hysteria2
     server: REPLACE_WITH_NODE_ADDRESS
@@ -26,9 +43,14 @@ proxies:
     password: REPLACE_WITH_HYSTERIA2_PASSWORD
     sni: REPLACE_WITH_HY2_SNI
     skip-cert-verify: false
+
   - name: Direct
     type: direct
     udp: true
+
+# ==============================================================================
+# 2. 基础与网络设置 (General Settings)
+# ==============================================================================
 mixed-port: 7890
 allow-lan: false
 bind-address: 127.0.0.1
@@ -38,17 +60,27 @@ tcp-concurrent: true
 log-level: info
 keep-alive-idle: 600
 keep-alive-interval: 15
+
 profile:
   store-selected: true
   store-fake-ip: true
+
+ntp:
+  enable: true
+  write-to-system: false
+
+# ==============================================================================
+# 3. 外部控制与 Web 管理面板 (External Controller & Web UI)
+# ==============================================================================
 external-controller: 127.0.0.1:9090
 secret: REPLACE_WITH_API_SECRET
 external-ui: ui
 external-ui-name: metacubexd
 external-ui-url: "https://gh-proxy.com/https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
-ntp:
-  enable: true
-  write-to-system: false
+
+# ==============================================================================
+# 4. TUN 虚拟网卡设置 (TUN Settings)
+# ==============================================================================
 tun:
   enable: true
   stack: system
@@ -61,6 +93,10 @@ tun:
   route-exclude-address:
     - 100.64.0.0/10
     - fd7a:115c:a1e0::/48
+
+# ==============================================================================
+# 5. 域名嗅探与协议识别 (Sniffer)
+# ==============================================================================
 sniffer:
   enable: true
   override-destination: false
@@ -82,6 +118,10 @@ sniffer:
   skip-domain:
     - Mijia Cloud
     - +.push.apple.com
+
+# ==============================================================================
+# 6. DNS 模块与分流策略 (DNS Settings)
+# ==============================================================================
 dns:
   enable: true
   cache-algorithm: arc
@@ -91,6 +131,8 @@ dns:
   fake-ip-range: 198.18.0.0/16
   fake-ip-filter-mode: blacklist
   default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
     - https://223.5.5.5/dns-query
   proxy-server-nameserver:
     - https://dns.alidns.com/dns-query
@@ -126,6 +168,10 @@ dns:
     - rule-set:microsoftcn_domain
     - rule-set:applecn_domain
     - rule-set:steamcn_domain
+
+# ==============================================================================
+# 7. 策略组配置 (Proxy Groups)
+# ==============================================================================
 proxy-groups:
   - name: Proxy
     type: select
@@ -133,18 +179,31 @@ proxy-groups:
       - Reality
       - Hysteria2
       - Direct
+
+# ==============================================================================
+# 8. 分流规则 (Routing Rules)
+# ==============================================================================
 rules:
+  # --- 自建组网直连 (Headscale / Tailscale) ---
   - DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_SERVER,Direct
   - DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_BASE_DOMAIN,Direct
-  - DOMAIN-KEYWORD,gh-proxy,Direct
-  - DOMAIN-SUFFIX,gh-proxy.com,Direct
   - IP-CIDR,100.64.0.0/10,Direct,no-resolve
   - IP-CIDR6,fd7a:115c:a1e0::/48,Direct,no-resolve
-  - IP-CIDR6,::/0,REJECT,no-resolve
   - DST-PORT,3478,Direct,no-resolve
   - DST-PORT,41641,Direct,no-resolve
+
+  # --- 规则集镜像站直连 (防死锁) ---
+  - DOMAIN-KEYWORD,gh-proxy,Direct
+  - DOMAIN-SUFFIX,gh-proxy.com,Direct
+
+  # --- 本地私网直连 ---
   - RULE-SET,private_ip,Direct,no-resolve
   - RULE-SET,private_domain,Direct
+
+  # --- 纯 IPv4 加固：拦截其余全部公网 IPv6 请求，0ms 秒退 IPv4 ---
+  - IP-CIDR6,::/0,REJECT,no-resolve
+
+  # --- 规则集匹配 (应用与域名分流) ---
   - RULE-SET,ai_domain,Proxy
   - RULE-SET,youtube_domain,Proxy
   - RULE-SET,google_domain,Proxy
@@ -169,7 +228,13 @@ rules:
   - RULE-SET,telegram_ip,Proxy
   - RULE-SET,netflix_ip,Proxy
   - RULE-SET,cn_ip,Direct
+
+  # --- 兜底策略 ---
   - MATCH,Proxy
+
+# ==============================================================================
+# 9. 远程规则集提供者 (Rule Providers)
+# ==============================================================================
 rule-providers:
   fakeipfilter_cn:
     type: http
