@@ -22,7 +22,7 @@
         "tag": "google",
         "type": "https",
         "server": "8.8.8.8",
-        "detour": "默认代理"
+        "detour": "Proxy"
       },
       {
         "tag": "fakeip",
@@ -43,7 +43,7 @@
         "tag": "tailscale-dns",
         "type": "udp",
         "server": "100.100.100.100",
-        "detour": "直连-tailscale"
+        "detour": "Direct-Tailscale"
       }
     ],
     "rules": [
@@ -132,15 +132,16 @@
   },
   "outbounds": [
     {
-      "tag": "默认代理",
+      "tag": "Proxy",
       "type": "selector",
       "outbounds": [
-        "自建-Reality",
-        "自建-Hy2"
+        "Reality",
+        "Hysteria2",
+        "Direct"
       ]
     },
     {
-      "tag": "自建-Reality",
+      "tag": "Reality",
       "type": "vless",
       "server": "REPLACE_WITH_NODE_ADDRESS",
       "server_port": 443,
@@ -165,7 +166,7 @@
       }
     },
     {
-      "tag": "自建-Hy2",
+      "tag": "Hysteria2",
       "type": "hysteria2",
       "server": "REPLACE_WITH_NODE_ADDRESS",
       "server_port": 443,
@@ -177,20 +178,20 @@
       }
     },
     {
-      "tag": "直连",
+      "tag": "Direct",
       "type": "direct",
       "domain_resolver": "ali"
     },
     {
-      "tag": "直连-tailscale",
+      "tag": "Direct-Tailscale",
       "type": "direct",
       "domain_resolver": "tailscale-dns"
     }
   ],
   "http_clients": [
     {
-      "tag": "直连下载",
-      "detour": "直连"
+      "tag": "Direct-Download",
+      "detour": "Direct"
     }
   ],
   "route": {
@@ -268,20 +269,20 @@
       },
       {
         "ip_is_private": true,
-        "outbound": "直连"
+        "outbound": "Direct"
       },
       {
         "ip_cidr": [
           "100.64.0.0/10",
           "fd7a:115c:a1e0::/48"
         ],
-        "outbound": "直连-tailscale"
+        "outbound": "Direct-Tailscale"
       },
       {
         "domain_suffix": [
           "REPLACE_WITH_HEADSCALE_BASE_DOMAIN"
         ],
-        "outbound": "直连-tailscale"
+        "outbound": "Direct-Tailscale"
       },
       {
         "port": [
@@ -289,13 +290,13 @@
           41641
         ],
         "network": "udp",
-        "outbound": "直连"
+        "outbound": "Direct"
       },
       {
         "domain_suffix": [
           "REPLACE_WITH_HEADSCALE_SERVER"
         ],
-        "outbound": "直连"
+        "outbound": "Direct"
       },
       {
         "type": "logical",
@@ -320,95 +321,95 @@
       },
       {
         "network": "icmp",
-        "outbound": "直连"
+        "outbound": "Direct"
       },
       {
         "clash_mode": "Direct",
-        "outbound": "直连"
+        "outbound": "Direct"
       },
       {
         "clash_mode": "Global",
-        "outbound": "默认代理"
+        "outbound": "Proxy"
       },
       {
         "rule_set": "geosite-private",
-        "outbound": "直连"
+        "outbound": "Direct"
       },
       {
         "rule_set": "geosite-category-ai-!cn",
-        "outbound": "默认代理"
+        "outbound": "Proxy"
       },
       {
         "rule_set": "geosite-youtube",
-        "outbound": "默认代理"
+        "outbound": "Proxy"
       },
       {
         "rule_set": "geosite-google",
-        "outbound": "默认代理"
+        "outbound": "Proxy"
       },
       {
         "rule_set": "geosite-github",
-        "outbound": "默认代理"
+        "outbound": "Proxy"
       },
       {
         "rule_set": "geosite-onedrive",
-        "outbound": "默认代理"
+        "outbound": "Proxy"
       },
       {
         "rule_set": "geosite-microsoft@cn",
-        "outbound": "直连"
+        "outbound": "Direct"
       },
       {
         "rule_set": "geosite-microsoft",
-        "outbound": "默认代理"
+        "outbound": "Proxy"
       },
       {
         "rule_set": "geosite-apple@cn",
-        "outbound": "直连"
+        "outbound": "Direct"
       },
       {
         "rule_set": "geosite-apple",
-        "outbound": "默认代理"
+        "outbound": "Proxy"
       },
       {
         "rule_set": "geosite-telegram",
-        "outbound": "默认代理"
+        "outbound": "Proxy"
       },
       {
         "rule_set": "geosite-tiktok",
-        "outbound": "默认代理"
+        "outbound": "Proxy"
       },
       {
         "rule_set": "geosite-netflix",
-        "outbound": "默认代理"
+        "outbound": "Proxy"
       },
       {
         "rule_set": "geosite-paypal",
-        "outbound": "默认代理"
+        "outbound": "Proxy"
       },
       {
         "rule_set": "geosite-binance",
-        "outbound": "默认代理"
+        "outbound": "Proxy"
       },
       {
         "rule_set": "geosite-okx",
-        "outbound": "默认代理"
+        "outbound": "Proxy"
       },
       {
         "rule_set": "geosite-category-cryptocurrency",
-        "outbound": "默认代理"
+        "outbound": "Proxy"
       },
       {
         "rule_set": "geosite-steam@cn",
-        "outbound": "直连"
+        "outbound": "Direct"
       },
       {
         "rule_set": "geosite-steam",
-        "outbound": "默认代理"
+        "outbound": "Proxy"
       },
       {
         "rule_set": "geosite-geolocation-!cn",
-        "outbound": "默认代理"
+        "outbound": "Proxy"
       },
       {
         "inbound": "mixed-in",
@@ -416,11 +417,11 @@
       },
       {
         "rule_set": "geoip-telegram",
-        "outbound": "默认代理"
+        "outbound": "Proxy"
       },
       {
         "rule_set": "geoip-cn",
-        "outbound": "直连"
+        "outbound": "Direct"
       }
     ],
     "rule_set": [
@@ -431,7 +432,7 @@
         ],
         "type": "remote",
         "format": "source",
-        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/RolinShmily/sub-rule/refs/heads/main/rules/{tag}.json"
+        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/RolinShmily/sub-rule/refs/heads/main/rules/{tag}.json"
       },
       {
         "tag": [
@@ -459,23 +460,23 @@
         ],
         "type": "remote",
         "format": "binary",
-        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/{tag}.srs"
+        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/{tag}.srs"
       },
       {
         "tag": "geoip-telegram",
         "type": "remote",
         "format": "binary",
-        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/telegram.srs"
+        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/telegram.srs"
       },
       {
         "tag": "geoip-cn",
         "type": "remote",
         "format": "binary",
-        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
+        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
       }
     ],
-    "final": "默认代理",
-    "default_http_client": "直连下载",
+    "final": "Proxy",
+    "default_http_client": "Direct-Download",
     "auto_detect_interface": true,
     "default_domain_resolver": {
       "server": "ali"

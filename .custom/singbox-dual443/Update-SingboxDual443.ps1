@@ -5,6 +5,15 @@
 首次覆写后仍可修改参数再次运行；按配置字段定位，不依赖旧占位符。
 示例：pwsh -File .custom/singbox-dual443/Update-SingboxDual443.ps1 -Preview
       pwsh -File .custom/singbox-dual443/Update-SingboxDual443.ps1
+
+如果提示「未进行数字签名，无法在当前系统上运行此脚本」：那是 Windows 默认执行策略
+（Restricted / AllSigned）拦下了未签名脚本，与本脚本内容无关。先一次性放开当前用户：
+    Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
+（想随时改回：Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Restricted -Force）
+不想改系统设置的话，只对本次调用绕过即可：
+    powershell -NoProfile -ExecutionPolicy Bypass -File .\Update-SingboxDual443.ps1 -Preview
+若脚本来自下载或 zip，再执行 Unblock-File .\Update-SingboxDual443.ps1 清掉「来自网络」标记。
+查看当前策略：Get-ExecutionPolicy -List
 #>
 [CmdletBinding()]
 param(
@@ -37,6 +46,9 @@ $Values = @{
     # --- 可选：Headscale / Tailscale 自建组网直连（若不使用自建 Headscale，保持 '' 或占位符即可） ---
     HeadscaleServer      = 'REPLACE_WITH_HEADSCALE_SERVER'      # 例如 'hs.example.com'，为空时自动剔除对应域名规则
     HeadscaleBaseDomain  = 'REPLACE_WITH_HEADSCALE_BASE_DOMAIN'  # 例如 'tail.net'，为空时自动剔除对应域名规则
+
+    # --- 可选：规则集下载代理前缀（留 '' 或占位符表示直连下载，不经任何镜像） ---
+    RuleSetProxy         = ''                                    # 例如 'https://gh-proxy.com/'，必须以 / 结尾；自动写入所有远程规则集与 Dashboard 下载地址
 }
 
 function Assert-Values {
@@ -81,6 +93,12 @@ function Assert-Values {
             }
         }
     }
+    $prefix = [string]$Values['RuleSetProxy']
+    if (-not [string]::IsNullOrWhiteSpace($prefix) -and ($prefix -notmatch '^REPLACE_WITH_')) {
+        if ($prefix.Trim() -notmatch '^https?://[^\s]+/$') {
+            throw 'RuleSetProxy 必须以 http:// 或 https:// 开头并以 / 结尾（如 https://gh-proxy.com/）；留空表示直连下载；未修改任何配置。'
+        }
+    }
     foreach ($key in @('Hy2Password', 'SingboxApiSecret', 'MihomoApiSecret')) {
         if ([string]$Values[$key] -match '[\r\n]' -or ([string]$Values[$key]).Length -lt 16) {
             throw "$key 至少 16 位且不能包含换行；未修改任何配置。"
@@ -91,6 +109,57 @@ function Assert-Values {
 function Get-One([object[]]$Items, [string]$Description) {
     if ($Items.Count -ne 1) { throw "无法唯一定位 $Description（找到 $($Items.Count) 个）；未修改任何配置。" }
     return $Items[0]
+}
+
+$RulesetProxyPlaceholder = 'REPLACE_WITH_RULESET_PROXY_PREFIX'
+
+function Resolve-RulesetPrefix {
+    $raw = [string]$Values['RuleSetProxy']
+    if ([string]::IsNullOrWhiteSpace($raw) -or $raw -match '^REPLACE_WITH_') { return '' }
+    return $raw.Trim()
+}
+
+function Get-CanonicalRulesetUrl([string]$Url) {
+    if ($Url.StartsWith($RulesetProxyPlaceholder)) {
+        return $Url.Substring($RulesetProxyPlaceholder.Length)
+    }
+    # 形如 https://gh-proxy.com/https://raw.githubusercontent.com/... 的镜像前缀：按最后一个 scheme 切分
+    $cut = [Math]::Max($Url.LastIndexOf('https://'), $Url.LastIndexOf('http://'))
+    if ($cut -gt 0) { return $Url.Substring($cut) }
+    return $Url
+}
+
+function Apply-RulesetProxyToConfig([object]$Cfg) {
+    $prefix = Resolve-RulesetPrefix
+    if ($null -ne $Cfg.route -and $null -ne $Cfg.route.rule_set) {
+        foreach ($rs in @($Cfg.route.rule_set)) {
+            if ($null -ne $rs -and $null -ne $rs.url) {
+                $rs.url = $prefix + (Get-CanonicalRulesetUrl([string]$rs.url))
+            }
+        }
+    }
+    foreach ($service in @($Cfg.services)) {
+        if ($null -ne $service -and $service.type -eq 'api' -and $null -ne $service.dashboard -and $null -ne $service.dashboard.download_url) {
+            $service.dashboard.download_url = $prefix + (Get-CanonicalRulesetUrl([string]$service.dashboard.download_url))
+        }
+    }
+    return $Cfg
+}
+
+function Apply-RulesetProxyToYaml([string]$Text) {
+    $prefix = Resolve-RulesetPrefix
+    $startMatch = [regex]::Match($Text, '(?m)^rule-providers:[ \t]*\r?$')
+    if (-not $startMatch.Success) { return $Text }
+    $tail = $Text.Substring($startMatch.Index + $startMatch.Length)
+    $stopMatch = [regex]::Match($tail, '(?m)^[^\s#]')
+    $sectionLen = if ($stopMatch.Success) { $stopMatch.Index } else { $tail.Length }
+    $section = $tail.Substring(0, $sectionLen)
+    $rest = $tail.Substring($sectionLen)
+    $newSection = [regex]::Replace($section, '(?m)^(\s+url: )([^\r\n]+)', [System.Text.RegularExpressions.MatchEvaluator] {
+        param($m)
+        $m.Groups[1].Value + $prefix + (Get-CanonicalRulesetUrl $m.Groups[2].Value.Trim())
+    })
+    return $Text.Substring(0, $startMatch.Index + $startMatch.Length) + $newSection + $rest
 }
 
 function Assert-Field([object]$Object, [string]$Field, [string]$Description) {
@@ -162,8 +231,8 @@ function Update-Server([string]$Path) {
 
 function Update-SingboxClient([string]$Path) {
     $cfg = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
-    $vless = Get-One @($cfg.outbounds | Where-Object { $_.tag -eq '自建-Reality' -and $_.type -eq 'vless' }) "$Path Reality 出站"
-    $hy2 = Get-One @($cfg.outbounds | Where-Object { $_.tag -eq '自建-Hy2' -and $_.type -eq 'hysteria2' }) "$Path Hy2 出站"
+    $vless = Get-One @($cfg.outbounds | Where-Object { $_.tag -eq 'Reality' -and $_.type -eq 'vless' }) "$Path Reality 出站"
+    $hy2 = Get-One @($cfg.outbounds | Where-Object { $_.tag -eq 'Hysteria2' -and $_.type -eq 'hysteria2' }) "$Path Hy2 出站"
     foreach ($field in @('tls', 'uuid', 'server')) { Assert-Field $vless $field "$Path Reality" }
     foreach ($field in @('tls', 'password', 'server')) { Assert-Field $hy2 $field "$Path Hy2" }
     Assert-Field $vless.tls 'reality' "$Path Reality TLS"
@@ -271,14 +340,14 @@ function Update-SingboxClient([string]$Path) {
             if ($isInnerDomain) {
                 if (-not [string]::IsNullOrWhiteSpace($hsDomain)) {
                     $r.domain_suffix = @($hsDomain)
-                    $r.outbound = '直连-tailscale'
+                    $r.outbound = 'Direct-Tailscale'
                     $newRouteRules += $r
                 }
             }
             elseif ($isServerDomain) {
                 if (-not [string]::IsNullOrWhiteSpace($hsServer)) {
                     $r.domain_suffix = @($hsServer)
-                    $r.outbound = '直连'
+                    $r.outbound = 'Direct'
                     $newRouteRules += $r
                 }
             }
@@ -289,19 +358,21 @@ function Update-SingboxClient([string]$Path) {
         $cfg.route.rules = $newRouteRules
     }
 
+    $cfg = Apply-RulesetProxyToConfig $cfg
+
     return $cfg | ConvertTo-Json -Depth 100
 }
 
 function Update-Mihomo([string]$Path) {
     $text = [System.IO.File]::ReadAllText($Path)
-    $text = Set-YamlProxy $text '自建-Reality' @{
+    $text = Set-YamlProxy $text 'Reality' @{
         server = @(4, $Values.NodeAddress)
         uuid = @(4, $Values.Uuid)
         servername = @(4, $Values.RealitySni)
         'public-key' = @(6, $Values.RealityPublicKey)
         'short-id' = @(6, $Values.ShortId)
     }
-    $text = Set-YamlProxy $text '自建-Hy2' @{
+    $text = Set-YamlProxy $text 'Hysteria2' @{
         server = @(4, $Values.NodeAddress)
         password = @(4, $Values.Hy2Password)
         sni = @(4, $Values.Hy2Sni)
@@ -337,7 +408,7 @@ function Update-Mihomo([string]$Path) {
         $text = $text -replace "(?m)^\s*'\+\.REPLACE_WITH_HEADSCALE_BASE_DOMAIN':[^\r\n]*\r?\n\s*-\s*100\.100\.100\.100\r?\n?", ''
     }
 
-    return $text
+    return Apply-RulesetProxyToYaml $text
 }
 
 Assert-Values
@@ -358,18 +429,37 @@ foreach ($file in $files) {
     $content = [System.IO.File]::ReadAllText($path)
     if ($file.Extension.ToLowerInvariant() -eq '.json') {
         $isServer = $content -match '"tag"\s*:\s*"(?:VLESS-Vision-Reality-in|hysteria-in)"'
-        $isClient = $content -match '"tag"\s*:\s*"(?:自建-Reality|自建-Hy2)"'
+        $isClient = $content -match '"tag"\s*:\s*"(?:Reality|Hysteria2)"'
         if ($isServer -and $isClient) { throw "文件同时包含服务端与客户端标签：$path；未修改任何配置。" }
         if ($isServer) { $updates[$path] = Update-Server $path }
         elseif ($isClient) { $updates[$path] = Update-SingboxClient $path }
         else { $skipped++ }
     }
     elseif ($content -match '(?m)^proxies:[ \t]*\r?$' -and
-            $content -match '(?m)^  - name:[ \t]*(?:自建-Reality|自建-Hy2)[ \t]*\r?$') {
+            $content -match '(?m)^  - name:[ \t]*(?:Reality|Hysteria2)[ \t]*\r?$') {
         $updates[$path] = Update-Mihomo $path
     }
     else { $skipped++ }
 }
+function Render-NodeLinks([string]$Root, [bool]$PreviewOnly) {
+    $node = [uri]::EscapeDataString([string]$Values.NodeAddress)
+    $sni = [uri]::EscapeDataString([string]$Values.RealitySni)
+    $hy2Sni = [uri]::EscapeDataString([string]$Values.Hy2Sni)
+    $hy2Pass = [uri]::EscapeDataString([string]$Values.Hy2Password)
+    $vlessUrl = "vless://$($Values.Uuid)@$node`:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=$sni&fp=chrome&pbk=$($Values.RealityPublicKey)&sid=$($Values.ShortId)&type=tcp&headerType=none#Reality"
+    $hy2Url = "hysteria2://$hy2Pass@$node`:443/?sni=$hy2Sni&insecure=0#Hysteria2"
+    $outDir = Join-Path $Root 'nodes'
+    $targets = @(
+        @{ Path = (Join-Path $outDir 'vless.txt'); Content = $vlessUrl + "`n" }
+        @{ Path = (Join-Path $outDir 'hysteria2.txt'); Content = $hy2Url + "`n" }
+    )
+    if ($PreviewOnly) { return @($targets | ForEach-Object { $_.Path }) }
+    if (-not [System.IO.Directory]::Exists($outDir)) { [void][System.IO.Directory]::CreateDirectory($outDir) }
+    $enc = New-Object System.Text.UTF8Encoding($false)
+    foreach ($t in $targets) { [System.IO.File]::WriteAllText($t.Path, $t.Content, $enc) }
+    return @($targets | ForEach-Object { $_.Path })
+}
+
 $paths = @($updates.Keys | Sort-Object)
 if ($paths.Count -eq 0) { throw "扫描了 $($files.Count) 个 JSON/YAML，但未识别到双 443 配置；未修改任何文件。" }
 foreach ($path in $paths) {
@@ -378,8 +468,13 @@ foreach ($path in $paths) {
     }
 }
 if ($Preview) {
+    $proxyDesc = Resolve-RulesetPrefix
+    if ([string]::IsNullOrWhiteSpace($proxyDesc)) { $proxyDesc = '（未设置，规则集与 Dashboard 走直连下载）' }
     Write-Host "扫描 $($files.Count) 个 JSON/YAML，识别 $($paths.Count) 个配置，跳过 $skipped 个；预览模式未写入，也未输出任何凭据。"
+    Write-Host "规则集下载前缀：$proxyDesc"
     foreach ($path in $paths) { Write-Host $path }
+    Write-Host '将同步生成分享链接：'
+    foreach ($p in (Render-NodeLinks $root $true)) { Write-Host $p }
     return
 }
 
@@ -397,3 +492,7 @@ foreach ($path in $paths) {
     }
 }
 Write-Host "已原地覆写 $($paths.Count) 个配置文件；请在目标系统检查并测试，不要将脚本或含真实凭据的文件提交 Git。"
+$proxyDesc = Resolve-RulesetPrefix
+if ([string]::IsNullOrWhiteSpace($proxyDesc)) { $proxyDesc = '（未设置，规则集与 Dashboard 走直连下载）' }
+Write-Host "规则集下载前缀：$proxyDesc"
+foreach ($p in (Render-NodeLinks $root $false)) { Write-Host "已同步分享链接：$p" }

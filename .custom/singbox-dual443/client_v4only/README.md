@@ -7,6 +7,6 @@
 2. **Happy Eyeballs 秒回退**：
    应用（如 Chrome / Edge）收到本地拒绝后，会在 0ms 瞬间回退走 IPv4 路由，绝不向纯 IPv4 的境外 VPS 发送死数据包，彻底消除 VPS 端的 `remote error: dial tcp network unreachable` 报错；
 3. **完整保留 Tailscale / Headscale 直通**：
-   包含 `直连-tailscale` 专属通道、`tailscale-dns` (100.100.100.100)、Windows 系统代理绕过名单及 Mihomo `direct-nameserver-follow-policy: true`。
+   包含 `Direct-Tailscale` 专属通道、`tailscale-dns` (100.100.100.100)、Windows 系统代理绕过名单及 Mihomo `direct-nameserver-follow-policy: true`。
 
 配套的服务端位于 `../server_v4only.json`。

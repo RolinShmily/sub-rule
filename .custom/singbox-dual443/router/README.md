@@ -70,7 +70,7 @@ WantedBy=multi-user.target
    - 规则层内置公网 IPv6 本地拦截（`ip_version: 6 -> reject`），配合应用层 Happy Eyeballs 瞬时秒退回到 IPv4，杜绝死数据包发往海外 VPS。
 2. **局域网监听扩展**：
    - `mixed-in`：监听 `0.0.0.0:2080`，局域网内其他设备如需显式代理可直接指向 `192.168.22.1:2080`。
-   - `api`：监听 `0.0.0.0:9090`，默认开启 Web Dashboard（`/etc/sing-box/dashboard`）。局域网内的 Windows 电脑可通过浏览器直接访问 `http://192.168.22.1:9090/ui`，或在 Web 控制面板（如 metacubexd / yacd）输入该地址远程监控管理 Debian 上的 sing-box 状态。
+   - `api`：监听 `0.0.0.0:9090`，默认开启 Web Dashboard（`/etc/sing-box/dashboard`）。局域网内的 Windows 电脑可通过浏览器直接访问 `http://192.168.22.1:9090/ui`，或在 Web 控制面板（如 metacubexd / yacd）输入该地址远程监控管理 Debian 上的 sing-box 状态。API 属于本机入站，不经过任何代理出站；两个节点全部失效时，内网（`br-lan`，nftables 已 `accept`）与 Tailscale（`tailscale0`，已被 `exclude_interface` 排除）依然可以直接打开面板。注意 `dashboard.download_url` 也带 `REPLACE_WITH_RULESET_PROXY_PREFIX` 占位符（由 `RuleSetProxy` 决定直连或镜像），且只在 `/etc/sing-box/dashboard` 缺失时才触发下载；建议首次部署时就让它下载就位，或在无外网的情况下预先拷入静态文件，否则面板将无可用 UI。
 3. **排除网段（`route_exclude_address`）**：
    - `192.168.0.0/16`：涵盖 `br-lan` 局域网（`192.168.22.0/24`）及常用私网。
    - `172.16.0.0/12`：标准 RFC 1918 私网网段。
@@ -81,3 +81,13 @@ WantedBy=multi-user.target
    - `br-lan`、`enp1s0`、`enp3s0`、`tailscale0`。
 3. **出站自适应（`route.auto_detect_interface: true`）**：
    - 不硬编码出网网卡，无线 WiFi（`wlo1`）与临时手机 USB（`enx*`）无缝热插拔切换。
+
+## 节点全部失效时的应急直连
+
+`Proxy` 策略组内置三个出口：`Reality`、`Hysteria2`、`Direct`。两个自建节点同时不可用时，无需修改任何配置文件：
+
+1. 从内网或 Tailscale 打开 `http://192.168.22.1:9090/ui`；
+2. 把 `Proxy` 组切到 `Direct`，或把控制面板的模式改为 `Direct`（`clash_mode`）；
+3. 节点恢复后切回 `Reality` / `Hysteria2`。
+
+另需注意 DNS 解耦：`Direct` 规则只换出口，不换解析器。若只切 `Proxy` 组而不切模式，`dns.servers` 里的 `google`（`8.8.8.8`，`detour: Proxy`）仍会跟随组出口，此时它已走直连，仅在境外 DoH 本身被阻断时才会超时；切到 `Direct` 模式则会额外把 `dns.final` 一并拉回 `ali`，属于最彻底的做法。

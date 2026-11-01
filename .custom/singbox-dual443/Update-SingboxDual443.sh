@@ -30,6 +30,9 @@ MihomoApiSecret='REPLACE_WITH_MIHOMO_API_SECRET'       # Mihomo 本机控制 API
 HeadscaleServer='REPLACE_WITH_HEADSCALE_SERVER'      # 例如 'hs.example.com'，为空时自动剔除对应域名规则
 HeadscaleBaseDomain='REPLACE_WITH_HEADSCALE_BASE_DOMAIN'  # 例如 'tail.net'，为空时自动剔除对应域名规则
 
+# --- 可选：规则集下载代理前缀（留 '' 或占位符表示直连下载，不经任何镜像） ---
+RuleSetProxy=''                                  # 例如 'https://gh-proxy.com/'，必须以 / 结尾；自动写入所有远程规则集与 Dashboard 下载地址
+
 # --- 以下内容请勿随意修改 ---
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
@@ -115,6 +118,7 @@ export DUAL443_SINGBOX_API_SECRET="$SingboxApiSecret"
 export DUAL443_MIHOMO_API_SECRET="$MihomoApiSecret"
 export DUAL443_HEADSCALE_SERVER="$HeadscaleServer"
 export DUAL443_HEADSCALE_BASE_DOMAIN="$HeadscaleBaseDomain"
+export DUAL443_RULESET_PROXY="$RuleSetProxy"
 
 python3 - << 'PY_EOF'
 import sys
@@ -122,6 +126,7 @@ import os
 import re
 import json
 import uuid
+import urllib.parse
 
 def main():
     values = {
@@ -141,12 +146,13 @@ def main():
         'MihomoApiSecret': os.environ.get('DUAL443_MIHOMO_API_SECRET', ''),
         'HeadscaleServer': os.environ.get('DUAL443_HEADSCALE_SERVER', ''),
         'HeadscaleBaseDomain': os.environ.get('DUAL443_HEADSCALE_BASE_DOMAIN', ''),
+        'RuleSetProxy': os.environ.get('DUAL443_RULESET_PROXY', ''),
     }
     config_root = os.environ.get('DUAL443_CONFIG_ROOT', '')
     is_preview = os.environ.get('DUAL443_PREVIEW', '0') == '1'
 
     def assert_values():
-        optional_keys = {'HeadscaleServer', 'HeadscaleBaseDomain'}
+        optional_keys = {'HeadscaleServer', 'HeadscaleBaseDomain', 'RuleSetProxy'}
         for key in values.keys():
             if key == 'HandshakePort' or key in optional_keys:
                 continue
@@ -188,11 +194,16 @@ def main():
             if re.search(r'[\s/]', val):
                 raise ValueError(f"{key} 只能填主机名或 IP，不要带协议或路径；未修改任何配置。")
 
-        for key in optional_keys:
+        for key in ['HeadscaleServer', 'HeadscaleBaseDomain']:
             val = str(values[key])
             if val.strip() and not val.strip().startswith('REPLACE_WITH_'):
                 if re.search(r'[\s/:]', val):
                     raise ValueError(f"{key} 只能填主机名或域名（如 hs.example.com），不要带协议、路径或端口；未修改任何配置。")
+
+        prefix = str(values['RuleSetProxy']).strip()
+        if prefix and not prefix.startswith('REPLACE_WITH_'):
+            if not re.fullmatch(r'https?://[^\s]+/', prefix):
+                raise ValueError("RuleSetProxy 必须以 http:// 或 https:// 开头并以 / 结尾（如 https://gh-proxy.com/）；留空表示直连下载；未修改任何配置。")
 
         for key in ['Hy2Password', 'SingboxApiSecret', 'MihomoApiSecret']:
             val = str(values[key])
@@ -203,6 +214,59 @@ def main():
         if len(items) != 1:
             raise ValueError(f"无法唯一定位 {description}（找到 {len(items)} 个）；未修改任何配置。")
         return items[0]
+
+    RULESET_PROXY_PLACEHOLDER = 'REPLACE_WITH_RULESET_PROXY_PREFIX'
+
+    def resolve_ruleset_prefix():
+        """返回空串（直连）或形如 https://gh-proxy.com/ 的前缀。"""
+        raw = str(values.get('RuleSetProxy', '')).strip()
+        if not raw or raw.startswith('REPLACE_WITH_'):
+            return ''
+        return raw
+
+    def normalize_ruleset_url(url):
+        """去除已有的镜像前缀与占位符，只保留规范的下游 URL（幂等）。"""
+        text = str(url)
+        if text.startswith(RULESET_PROXY_PLACEHOLDER):
+            return text[len(RULESET_PROXY_PLACEHOLDER):]
+        # 形如 https://gh-proxy.com/https://raw.githubusercontent.com/... 的镜像前缀：按最后一个 scheme 切分
+        cut = max(text.rfind('https://'), text.rfind('http://'))
+        if cut > 0:
+            return text[cut:]
+        return text
+
+    def apply_ruleset_proxy_to_json(cfg):
+        prefix = resolve_ruleset_prefix()
+        touched = 0
+        route = cfg.get('route')
+        if isinstance(route, dict):
+            for rule_set in route.get('rule_set') or []:
+                if isinstance(rule_set, dict) and isinstance(rule_set.get('url'), str):
+                    rule_set['url'] = prefix + normalize_ruleset_url(rule_set['url'])
+                    touched += 1
+        for service in cfg.get('services') or []:
+            if isinstance(service, dict) and isinstance(service.get('type'), str) and service.get('type') == 'api':
+                dashboard = service.get('dashboard')
+                if isinstance(dashboard, dict) and isinstance(dashboard.get('download_url'), str):
+                    dashboard['download_url'] = prefix + normalize_ruleset_url(dashboard['download_url'])
+                    touched += 1
+        return touched
+
+    def apply_ruleset_proxy_to_yaml(text):
+        prefix = resolve_ruleset_prefix()
+        start = re.search(r'(?m)^rule-providers:[ \t]*\r?$', text)
+        if not start:
+            return text
+        tail = text[start.end():]
+        stop = re.search(r'(?m)^[^\s#]', tail)
+        section_end = start.end() + (stop.start() if stop else len(tail))
+        section = text[start.end():section_end]
+        pattern = re.compile(r'(?m)^(\s+url: )([^\r\n]+)')
+        def repl(m):
+            value = m.group(2).strip()
+            return m.group(1) + prefix + normalize_ruleset_url(value)
+        new_section = pattern.sub(repl, section)
+        return text[:start.end()] + new_section + text[section_end:]
 
     def assert_field(obj, field, description):
         if obj is None or not isinstance(obj, dict) or field not in obj or obj[field] is None:
@@ -277,8 +341,8 @@ def main():
             cfg = json.load(f)
 
         outbounds = cfg.get('outbounds', [])
-        vless_list = [ob for ob in outbounds if ob.get('tag') == '自建-Reality' and ob.get('type') == 'vless']
-        hy2_list = [ob for ob in outbounds if ob.get('tag') == '自建-Hy2' and ob.get('type') == 'hysteria2']
+        vless_list = [ob for ob in outbounds if ob.get('tag') == 'Reality' and ob.get('type') == 'vless']
+        hy2_list = [ob for ob in outbounds if ob.get('tag') == 'Hysteria2' and ob.get('type') == 'hysteria2']
 
         vless = get_one(vless_list, f"{path} Reality 出站")
         hy2 = get_one(hy2_list, f"{path} Hy2 出站")
@@ -386,16 +450,18 @@ def main():
                 if is_inner_domain:
                     if hs_domain:
                         r['domain_suffix'] = [hs_domain]
-                        r['outbound'] = '直连-tailscale'
+                        r['outbound'] = 'Direct-Tailscale'
                         new_route_rules.append(r)
                 elif is_server_domain:
                     if hs_server:
                         r['domain_suffix'] = [hs_server]
-                        r['outbound'] = '直连'
+                        r['outbound'] = 'Direct'
                         new_route_rules.append(r)
                 else:
                     new_route_rules.append(r)
             cfg['route']['rules'] = new_route_rules
+
+        apply_ruleset_proxy_to_json(cfg)
 
         return json.dumps(cfg, indent=2, ensure_ascii=False)
 
@@ -403,14 +469,14 @@ def main():
         with open(path, 'r', encoding='utf-8') as f:
             text = f.read()
 
-        text = set_yaml_proxy(text, '自建-Reality', {
+        text = set_yaml_proxy(text, 'Reality', {
             'server': (4, values['NodeAddress']),
             'uuid': (4, values['Uuid']),
             'servername': (4, values['RealitySni']),
             'public-key': (6, values['RealityPublicKey']),
             'short-id': (6, values['ShortId']),
         })
-        text = set_yaml_proxy(text, '自建-Hy2', {
+        text = set_yaml_proxy(text, 'Hysteria2', {
             'server': (4, values['NodeAddress']),
             'password': (4, values['Hy2Password']),
             'sni': (4, values['Hy2Sni']),
@@ -446,7 +512,44 @@ def main():
             text = re.sub(r"(?m)^\s*-\s*'\+\.REPLACE_WITH_HEADSCALE_BASE_DOMAIN'[^\r\n]*\r?\n?", '', text)
             text = re.sub(r"(?m)^\s*'\+\.REPLACE_WITH_HEADSCALE_BASE_DOMAIN':[^\r\n]*\r?\n\s*-\s*100\.100\.100\.100\r?\n?", '', text)
 
-        return text
+        return apply_ruleset_proxy_to_yaml(text)
+
+    def render_node_links(root):
+        """用与 server.json 同一批取值生成 nodes/*.txt 分享链接，避免两边不一致。"""
+        node = str(values['NodeAddress']).strip()
+        node_encoded = urllib.parse.quote(node, safe='')
+        sni = urllib.parse.quote(str(values['RealitySni']).strip(), safe='.-_')
+        hy2_sni = urllib.parse.quote(str(values['Hy2Sni']).strip(), safe='.-_')
+        hy2_password = urllib.parse.quote(str(values['Hy2Password']), safe='')
+
+        vless_url = (
+            f"vless://{values['Uuid']}@{node_encoded}:443"
+            f"?encryption=none&flow=xtls-rprx-vision&security=reality"
+            f"&sni={sni}&fp=chrome&pbk={values['RealityPublicKey']}"
+            f"&sid={values['ShortId']}&type=tcp&headerType=none#Reality"
+        )
+        hy2_url = (
+            f"hysteria2://{hy2_password}@{node_encoded}:443/"
+            f"?sni={hy2_sni}&insecure=0#Hysteria2"
+        )
+
+        out_dir = os.path.join(root, 'nodes')
+        targets = [
+            (os.path.join(out_dir, 'vless.txt'), vless_url + "\n"),
+            (os.path.join(out_dir, 'hysteria2.txt'), hy2_url + "\n"),
+        ]
+        if is_preview:
+            return [p for p, _ in targets]
+
+        os.makedirs(out_dir, exist_ok=True)
+        written = []
+        for path, content in targets:
+            temp = f"{path}.tmp-{uuid.uuid4().hex}"
+            with open(temp, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(content)
+            os.replace(temp, path)
+            written.append(path)
+        return written
 
     # 主执行逻辑
     assert_values()
@@ -470,7 +573,7 @@ def main():
         ext = os.path.splitext(file_path)[1].lower()
         if ext == '.json':
             is_server = bool(re.search(r'"tag"\s*:\s*"(?:VLESS-Vision-Reality-in|hysteria-in)"', content))
-            is_client = bool(re.search(r'"tag"\s*:\s*"(?:自建-Reality|自建-Hy2)"', content))
+            is_client = bool(re.search(r'"tag"\s*:\s*"(?:Reality|Hysteria2)"', content))
             if is_server and is_client:
                 raise ValueError(f"文件同时包含服务端与客户端标签：{file_path}；未修改任何配置。")
             if is_server:
@@ -481,7 +584,7 @@ def main():
                 skipped += 1
         elif ext == '.yaml':
             if (re.search(r'(?m)^proxies:[ \t]*\r?$', content) and
-                re.search(r'(?m)^  - name:[ \t]*(?:自建-Reality|自建-Hy2)[ \t]*\r?$', content)):
+                re.search(r'(?m)^  - name:[ \t]*(?:Reality|Hysteria2)[ \t]*\r?$', content)):
                 updates[file_path] = update_mihomo(file_path)
             else:
                 skipped += 1
@@ -496,9 +599,15 @@ def main():
         if 'REPLACE_WITH_' in updates[p]:
             raise ValueError(f"配置中仍有未处理的占位符：{p}；未修改任何配置。")
 
+    proxy_desc = resolve_ruleset_prefix() or "（未设置，规则集与 Dashboard 走直连下载）"
+
     if is_preview:
         print(f"扫描 {len(files)} 个 JSON/YAML，识别 {len(paths)} 个配置，跳过 {skipped} 个；预览模式未写入，也未输出任何凭据。")
+        print(f"规则集下载前缀：{proxy_desc}")
         for p in paths:
+            print(p)
+        print("将同步生成分享链接：")
+        for p in render_node_links(root):
             print(p)
         return
 
@@ -523,6 +632,9 @@ def main():
                 except OSError: pass
 
     print(f"已原地覆写 {len(paths)} 个配置文件；请在目标系统检查并测试，不要将脚本或含真实凭据的文件提交 Git。")
+    print(f"规则集下载前缀：{proxy_desc}")
+    for p in render_node_links(root):
+        print(f"已同步分享链接：{p}")
 
 if __name__ == '__main__':
     try:
