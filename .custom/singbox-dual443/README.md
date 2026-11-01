@@ -1,9 +1,9 @@
 # sing-box 1.14：Debian VPS 双 443
 
 - `server.json`：基于仓库 `config/singbox/1.14X/VPS/server.json` 裁剪的服务端，VLESS-Reality 监听 **TCP 443**，Hysteria2 监听 **UDP 443**（无 Salamander）。Nginx 的 HTTPS 伪装站独立监听 TCP 8443，不会自动成为 Reality 握手目标。
-- `client/`：通用双栈客户端（Windows、Linux、macOS、iPhone、Android 及 Mihomo YAML），细节见 [`client/README.md`](client/README.md)。
-- `server_v4only.json` 与 `client_v4only/`：**专为无 IPv6 的纯 IPv4 海外 VPS 打造的加固版本**。在客户端本地 0ms 截断公网 IPv6 请求，触发 Happy Eyeballs 自动走 IPv4，并在 VPS 端配置安全拒绝，彻底消除 `remote error: dial tcp network unreachable` 错误。细节见 [`client_v4only/README.md`](client_v4only/README.md)。
-- `router/`：**专为 Debian 软路由打造的本机透明代理与下游隔离方案**。包含 `singbox-homerouter-deb.json` 与一键隔离脚本 `setup-router-guard.sh`，细节见 [`router/README.md`](router/README.md)。
+- `client/`：通用双栈客户端（`singbox/` 目录下的 Windows、Linux、macOS、iPhone、Android 及根下的 Mihomo YAML），细节见 [`client/README.md`](client/README.md)。
+- `server_v4only.json` 与 `client_v4only/`：**专为无 IPv6 的纯 IPv4 海外 VPS 打造的加固版本**。在客户端本地 0ms 截断公网 IPv6 请求，触发 Happy Eyeballs 自动走 IPv4，并在 VPS 端配置安全拒绝，彻底消除 `remote error: dial tcp network unreachable` 错误。客户端包含 `singbox/` 子目录及 Mihomo YAML，细节见 [`client_v4only/README.md`](client_v4only/README.md)。
+- `router-selfonly/`：**专为 Debian 软路由打造的本机透明代理与下游隔离方案**。包含 `singbox-homerouter-deb.json`、`mihomo-homerouter-deb.yaml` 与一键隔离脚本 `setup-router-guard.sh`，细节见 [`router-selfonly/README.md`](router-selfonly/README.md)。
 - `nodes/`：**两种节点的分享链接**（URI 形态，与 `server.json` 同源）。`vless.txt` 对应 Reality（TCP 443），`hysteria2.txt` 对应 Hy2（UDP 443）；占位符由脚本用同一批取值填入，细节见 [`nodes/README.md`](nodes/README.md)。
 - `Update-SingboxDual443.sh`：Unix/Linux/macOS 专用的 Bash 脚本，递归扫描本目录及子目录的 `.json`、`.yaml`，自动识别上述所有通用版与 v4only 版配置并批量原地覆写。注意文件名大小写已统一为 `Update-SingboxDual443.sh`，不再提供全小写别名（在 NTFS 等大小写不敏感卷上会让软链接自引用或退化成普通文本文件）。
 - `Update-SingboxDual443.ps1`：Windows/PowerShell 版递归扫描与批量覆写脚本；脚本和生成后的配置都可能含明文密钥，**不要提交到公开仓库**。
@@ -25,9 +25,9 @@
 | `CertificatePath` / `KeyPath` | Debian VPS 上真实证书链和私钥的绝对路径；对应 `REPLACE_WITH_CERTIFICATE_PATH` / `REPLACE_WITH_KEY_PATH`，必须让 sing-box 进程可读 |
 | `SingboxApiSecret` / `MihomoApiSecret` | 两类客户端的本机控制 API 密钥，不是节点密码 |
 | `HeadscaleServer` / `HeadscaleBaseDomain` | （可选）Headscale 控制面/DERP 域名及 MagicDNS 根域名；**若不使用可留空 `''`**，脚本会自动忽略且不报错 |
-| `RuleSetProxy` | （可选）远程规则集与 Dashboard 的下载镜像前缀，如 `https://gh-proxy.com/`，**必须以 `/` 结尾**。留空 `''` 即直连上游下载（推荐）。脚本会把 `REPLACE_WITH_RULESET_PROXY_PREFIX` 占位符替换为该前缀或直接删除，且可重复运行（先按最后一个 `https://` 归一化旧前缀，不会叠加成双重镜像） |
+| `RuleSetProxy` | （可选）远程规则集与 Dashboard 的下载镜像前缀，默认预设为 `https://gh-proxy.com/`，**必须以 `/` 结尾**。若需直连下载上游可留空 `''`。脚本会自动重写所有远程规则集与 Dashboard 下载地址，且可重复运行（先按最后一个 `https://` 归一化旧前缀，不会叠加成双重镜像） |
 
-配置中的规则集地址形如 `REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/...`：占位符本身不属于 URL，只由脚本消费；脚本未运行时该字段就是未填写的模板（与其他 `REPLACE_WITH_*` 一致）。其作用范围：sing-box 的 `route.rule_set[].url` 与 `services.api.dashboard.download_url`，以及 Mihomo 的 `rule-providers.*.url`。
+配置中的规则集地址默认已预设为 `https://gh-proxy.com/https://...`：开箱即用支持国内镜像加速下载。其作用范围：sing-box 的 `route.rule_set[].url` 与 `services.api.dashboard.download_url`，以及 Mihomo 的 `rule-providers.*.url` 与 `external-ui-url`。
 
 生成 UUID、Reality 密钥对和 Hy2 强随机密码（在私有终端执行，避免记录到公开日志）：
 
@@ -63,6 +63,6 @@ pwsh -File .custom/singbox-dual443/Update-SingboxDual443.ps1
 
 脚本递归检测本目录及子目录中的 JSON/YAML，按节点类型、标签和字段定位；不匹配的文件跳过。除覆写配置外，脚本还会用同一批取值重新生成 `nodes/vless.txt` 与 `nodes/hysteria2.txt` 分享链接，保证节点链接与 `server.json` 不会脱节。修改脚本值后可以再次运行；它不会修改 README 或仓库原版配置：对远程规则集只重写 URL 前缀部分（`RuleSetProxy`），不动下游地址。脚本不替你申请证书或验证服务器可达。**原地覆写会移除模板占位符**；请自己备份原始模板，勿把填有真实私钥/密码的脚本与配置提交到 Git。若在 Git 工作目录使用，可用 `git status --short` 检查待提交文件。
 
-在相应目标系统上运行 `sing-box check -c server.json` 或 `sing-box check -c client/singbox-windows.json`（依平台选择）。服务端证书路径必须存在且可读；Linux 客户端 `auto_redirect` 必须在 Linux 上检查。Mihomo 请用实际内核/客户端核验；语法检查不能代替证书、DNS、规则集下载与连通性测试。
+在相应目标系统上运行 `sing-box check -c server.json` 或 `sing-box check -c client/singbox/singbox-windows.json`（依平台选择）。服务端证书路径必须存在且可读；Linux 客户端 `auto_redirect` 必须在 Linux 上检查。Mihomo 请用实际内核/客户端核验；语法检查不能代替证书、DNS、规则集下载与连通性测试。
 
 字段依据：[sing-box VLESS 入站](https://sing-box.sagernet.org/configuration/inbound/vless/)、[Hy2 入站](https://sing-box.sagernet.org/configuration/inbound/hysteria2/)、[Reality 与证书 TLS](https://sing-box.sagernet.org/configuration/shared/tls/)。

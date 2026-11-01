@@ -71,6 +71,15 @@
         "server": "ali"
       },
       {
+        "domain_keyword": [
+          "gh-proxy"
+        ],
+        "domain_suffix": [
+          "gh-proxy.com"
+        ],
+        "server": "ali"
+      },
+      {
         "clash_mode": "Global",
         "server": "fakeip"
       },
@@ -273,6 +282,12 @@
       },
       {
         "ip_cidr": [
+          "172.32.0.0/12"
+        ],
+        "outbound": "Direct"
+      },
+      {
+        "ip_cidr": [
           "100.64.0.0/10",
           "fd7a:115c:a1e0::/48"
         ],
@@ -295,6 +310,15 @@
       {
         "domain_suffix": [
           "REPLACE_WITH_HEADSCALE_SERVER"
+        ],
+        "outbound": "Direct"
+      },
+      {
+        "domain_keyword": [
+          "gh-proxy"
+        ],
+        "domain_suffix": [
+          "gh-proxy.com"
         ],
         "outbound": "Direct"
       },
@@ -437,7 +461,7 @@
         ],
         "type": "remote",
         "format": "source",
-        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/RolinShmily/sub-rule/refs/heads/main/rules/{tag}.json"
+        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/RolinShmily/sub-rule/refs/heads/main/rules/{tag}.json"
       },
       {
         "tag": [
@@ -465,19 +489,19 @@
         ],
         "type": "remote",
         "format": "binary",
-        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/{tag}.srs"
+        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/{tag}.srs"
       },
       {
         "tag": "geoip-telegram",
         "type": "remote",
         "format": "binary",
-        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/telegram.srs"
+        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/telegram.srs"
       },
       {
         "tag": "geoip-cn",
         "type": "remote",
         "format": "binary",
-        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
+        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
       }
     ],
     "final": "Proxy",
@@ -492,34 +516,42 @@
       "tag": "tun-in",
       "type": "tun",
       "address": [
-        "172.19.0.1/30",
-        "fdfe:dcba:9876::1/126"
+        "172.19.0.1/30"
       ],
       "auto_route": true,
-      "auto_redirect": true,
+      "auto_redirect": false,
       "route_exclude_address": [
-        "100.64.0.0/10",
-        "fd7a:115c:a1e0::/48"
+        "192.168.0.0/16",
+        "172.16.0.0/12",
+        "172.32.0.0/12",
+        "10.0.0.0/8",
+        "100.64.0.0/10"
       ],
       "exclude_interface": [
+        "br-lan",
+        "enp1s0",
+        "enp3s0",
         "tailscale0"
-      ]
+      ],
+      "strict_route": false
     },
     {
       "tag": "mixed-in",
       "type": "mixed",
-      "listen": "127.0.0.1",
+      "listen": "0.0.0.0",
       "listen_port": 2080
     }
   ],
   "services": [
     {
       "type": "api",
-      "listen": "127.0.0.1",
+      "listen": "0.0.0.0",
       "listen_port": 9090,
       "secret": "REPLACE_WITH_API_SECRET",
       "dashboard": {
-        "enabled": false
+        "enabled": true,
+        "path": "/etc/sing-box/dashboard",
+        "download_url": "https://gh-proxy.com/https://github.com/SagerNet/sing-box-dashboard/archive/refs/heads/gh-pages.zip"
       }
     }
   ],

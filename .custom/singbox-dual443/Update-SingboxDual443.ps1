@@ -47,8 +47,8 @@ $Values = @{
     HeadscaleServer      = 'REPLACE_WITH_HEADSCALE_SERVER'      # 例如 'hs.example.com'，为空时自动剔除对应域名规则
     HeadscaleBaseDomain  = 'REPLACE_WITH_HEADSCALE_BASE_DOMAIN'  # 例如 'tail.net'，为空时自动剔除对应域名规则
 
-    # --- 可选：规则集下载代理前缀（留 '' 或占位符表示直连下载，不经任何镜像） ---
-    RuleSetProxy         = ''                                    # 例如 'https://gh-proxy.com/'，必须以 / 结尾；自动写入所有远程规则集与 Dashboard 下载地址
+    # --- 可选：规则集下载代理前缀（默认使用 gh-proxy 镜像加速；留 '' 或占位符表示直连下载） ---
+    RuleSetProxy         = 'https://gh-proxy.com/'               # 必须以 / 结尾；自动写入所有远程规则集与 Dashboard 下载地址
 }
 
 function Assert-Values {
@@ -148,6 +148,17 @@ function Apply-RulesetProxyToConfig([object]$Cfg) {
 
 function Apply-RulesetProxyToYaml([string]$Text) {
     $prefix = Resolve-RulesetPrefix
+
+    # 替换 external-ui-url（若存在）
+    $uiPattern = '(?m)^(\s*external-ui-url:\s*["'']?)([^"''\r\n]+)(["'']?)'
+    $Text = [regex]::Replace($Text, $uiPattern, [System.Text.RegularExpressions.MatchEvaluator] {
+        param($m)
+        $lead = $m.Groups[1].Value
+        $val = $m.Groups[2].Value.Trim()
+        $quote = $m.Groups[3].Value
+        return "$lead$prefix$((Get-CanonicalRulesetUrl $val))$quote"
+    })
+
     $startMatch = [regex]::Match($Text, '(?m)^rule-providers:[ \t]*\r?$')
     if (-not $startMatch.Success) { return $Text }
     $tail = $Text.Substring($startMatch.Index + $startMatch.Length)

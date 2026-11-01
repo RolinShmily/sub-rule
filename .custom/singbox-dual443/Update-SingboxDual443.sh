@@ -30,8 +30,8 @@ MihomoApiSecret='REPLACE_WITH_MIHOMO_API_SECRET'       # Mihomo 本机控制 API
 HeadscaleServer='REPLACE_WITH_HEADSCALE_SERVER'      # 例如 'hs.example.com'，为空时自动剔除对应域名规则
 HeadscaleBaseDomain='REPLACE_WITH_HEADSCALE_BASE_DOMAIN'  # 例如 'tail.net'，为空时自动剔除对应域名规则
 
-# --- 可选：规则集下载代理前缀（留 '' 或占位符表示直连下载，不经任何镜像） ---
-RuleSetProxy=''                                  # 例如 'https://gh-proxy.com/'，必须以 / 结尾；自动写入所有远程规则集与 Dashboard 下载地址
+# --- 可选：规则集下载代理前缀（默认使用 gh-proxy 镜像加速；留 '' 或占位符表示直连下载） ---
+RuleSetProxy='https://gh-proxy.com/'             # 必须以 / 结尾；自动写入所有远程规则集与 Dashboard 下载地址
 
 # --- 以下内容请勿随意修改 ---
 
@@ -254,6 +254,15 @@ def main():
 
     def apply_ruleset_proxy_to_yaml(text):
         prefix = resolve_ruleset_prefix()
+        # 替换 external-ui-url（若存在）
+        pattern_ui = re.compile(r'(?m)^(\s*external-ui-url:\s*["\']?)([^"\'\r\n]+)(["\']?)')
+        def repl_ui(m):
+            lead = m.group(1)
+            val = m.group(2).strip()
+            quote = m.group(3)
+            return f"{lead}{prefix}{normalize_ruleset_url(val)}{quote}"
+        text = pattern_ui.sub(repl_ui, text)
+
         start = re.search(r'(?m)^rule-providers:[ \t]*\r?$', text)
         if not start:
             return text

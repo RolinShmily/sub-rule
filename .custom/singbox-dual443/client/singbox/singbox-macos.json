@@ -71,6 +71,15 @@
         "server": "ali"
       },
       {
+        "domain_keyword": [
+          "gh-proxy"
+        ],
+        "domain_suffix": [
+          "gh-proxy.com"
+        ],
+        "server": "ali"
+      },
+      {
         "clash_mode": "Global",
         "server": "fakeip"
       },
@@ -263,6 +272,15 @@
         "outbound": "Direct"
       },
       {
+        "domain_keyword": [
+          "gh-proxy"
+        ],
+        "domain_suffix": [
+          "gh-proxy.com"
+        ],
+        "outbound": "Direct"
+      },
+      {
         "type": "logical",
         "mode": "or",
         "rules": [
@@ -396,7 +414,7 @@
         ],
         "type": "remote",
         "format": "source",
-        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/RolinShmily/sub-rule/refs/heads/main/rules/{tag}.json"
+        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/RolinShmily/sub-rule/refs/heads/main/rules/{tag}.json"
       },
       {
         "tag": [
@@ -424,19 +442,19 @@
         ],
         "type": "remote",
         "format": "binary",
-        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/{tag}.srs"
+        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/{tag}.srs"
       },
       {
         "tag": "geoip-telegram",
         "type": "remote",
         "format": "binary",
-        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/telegram.srs"
+        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/telegram.srs"
       },
       {
         "tag": "geoip-cn",
         "type": "remote",
         "format": "binary",
-        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
+        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
       }
     ],
     "final": "Proxy",
@@ -513,16 +531,11 @@
   ],
   "experimental": {
     "cache_file": {
-      "enabled": true,
-      "store_dns": true
+      "enabled": true
     }
   },
   "certificate": {
     "store": "chrome"
-  },
-  "ntp": {
-    "enabled": true,
-    "server": "time.apple.com"
   },
   "log": {
     "disabled": false,

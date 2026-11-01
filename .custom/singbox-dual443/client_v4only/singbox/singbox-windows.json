@@ -38,6 +38,12 @@
             "120.53.53.53"
           ]
         }
+      },
+      {
+        "tag": "tailscale-dns",
+        "type": "udp",
+        "server": "100.100.100.100",
+        "detour": "Direct-Tailscale"
       }
     ],
     "rules": [
@@ -50,6 +56,27 @@
       },
       {
         "clash_mode": "Direct",
+        "server": "ali"
+      },
+      {
+        "domain_suffix": [
+          "REPLACE_WITH_HEADSCALE_BASE_DOMAIN"
+        ],
+        "server": "tailscale-dns"
+      },
+      {
+        "domain_suffix": [
+          "REPLACE_WITH_HEADSCALE_SERVER"
+        ],
+        "server": "ali"
+      },
+      {
+        "domain_keyword": [
+          "gh-proxy"
+        ],
+        "domain_suffix": [
+          "gh-proxy.com"
+        ],
         "server": "ali"
       },
       {
@@ -163,6 +190,11 @@
       "tag": "Direct",
       "type": "direct",
       "domain_resolver": "ali"
+    },
+    {
+      "tag": "Direct-Tailscale",
+      "type": "direct",
+      "domain_resolver": "tailscale-dns"
     }
   ],
   "http_clients": [
@@ -210,6 +242,42 @@
       },
       {
         "ip_is_private": true,
+        "outbound": "Direct"
+      },
+      {
+        "ip_cidr": [
+          "100.64.0.0/10",
+          "fd7a:115c:a1e0::/48"
+        ],
+        "outbound": "Direct-Tailscale"
+      },
+      {
+        "domain_suffix": [
+          "REPLACE_WITH_HEADSCALE_BASE_DOMAIN"
+        ],
+        "outbound": "Direct-Tailscale"
+      },
+      {
+        "port": [
+          3478,
+          41641
+        ],
+        "network": "udp",
+        "outbound": "Direct"
+      },
+      {
+        "domain_suffix": [
+          "REPLACE_WITH_HEADSCALE_SERVER"
+        ],
+        "outbound": "Direct"
+      },
+      {
+        "domain_keyword": [
+          "gh-proxy"
+        ],
+        "domain_suffix": [
+          "gh-proxy.com"
+        ],
         "outbound": "Direct"
       },
       {
@@ -331,6 +399,10 @@
         "outbound": "Proxy"
       },
       {
+        "inbound": "mixed-in",
+        "action": "resolve"
+      },
+      {
         "rule_set": "geoip-telegram",
         "outbound": "Proxy"
       },
@@ -347,7 +419,7 @@
         ],
         "type": "remote",
         "format": "source",
-        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/RolinShmily/sub-rule/refs/heads/main/rules/{tag}.json"
+        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/RolinShmily/sub-rule/refs/heads/main/rules/{tag}.json"
       },
       {
         "tag": [
@@ -375,19 +447,19 @@
         ],
         "type": "remote",
         "format": "binary",
-        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/{tag}.srs"
+        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/{tag}.srs"
       },
       {
         "tag": "geoip-telegram",
         "type": "remote",
         "format": "binary",
-        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/telegram.srs"
+        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/telegram.srs"
       },
       {
         "tag": "geoip-cn",
         "type": "remote",
         "format": "binary",
-        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
+        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
       }
     ],
     "final": "Proxy",
@@ -405,16 +477,75 @@
         "172.19.0.1/30",
         "fdfe:dcba:9876::1/126"
       ],
-      "auto_route": true
+      "auto_route": true,
+      "platform": {
+        "http_proxy": {
+          "enabled": true,
+          "server": "127.0.0.1",
+          "server_port": 2080,
+          "bypass_domain": [
+            "<local>",
+            "localhost",
+            "127.*",
+            "10.*",
+            "172.16.*",
+            "172.17.*",
+            "172.18.*",
+            "172.19.*",
+            "172.20.*",
+            "172.21.*",
+            "172.22.*",
+            "172.23.*",
+            "172.24.*",
+            "172.25.*",
+            "172.26.*",
+            "172.27.*",
+            "172.28.*",
+            "172.29.*",
+            "172.30.*",
+            "172.31.*",
+            "192.168.*",
+            "100.*",
+            "REPLACE_WITH_HEADSCALE_SERVER",
+            "REPLACE_WITH_HEADSCALE_BASE_DOMAIN"
+          ]
+        }
+      },
+      "route_exclude_address": [
+        "100.64.0.0/10",
+        "fd7a:115c:a1e0::/48"
+      ]
+    },
+    {
+      "tag": "mixed-in",
+      "type": "mixed",
+      "listen": "127.0.0.1",
+      "listen_port": 2080
+    }
+  ],
+  "services": [
+    {
+      "type": "api",
+      "listen": "127.0.0.1",
+      "listen_port": 9090,
+      "secret": "REPLACE_WITH_API_SECRET",
+      "dashboard": {
+        "enabled": false
+      }
     }
   ],
   "experimental": {
     "cache_file": {
-      "enabled": true
+      "enabled": true,
+      "store_dns": true
     }
   },
   "certificate": {
     "store": "chrome"
+  },
+  "ntp": {
+    "enabled": true,
+    "server": "time.apple.com"
   },
   "log": {
     "disabled": false,

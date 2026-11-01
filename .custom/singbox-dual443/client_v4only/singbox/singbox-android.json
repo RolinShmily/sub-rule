@@ -38,12 +38,6 @@
             "120.53.53.53"
           ]
         }
-      },
-      {
-        "tag": "tailscale-dns",
-        "type": "udp",
-        "server": "100.100.100.100",
-        "detour": "Direct-Tailscale"
       }
     ],
     "rules": [
@@ -59,14 +53,11 @@
         "server": "ali"
       },
       {
-        "domain_suffix": [
-          "REPLACE_WITH_HEADSCALE_BASE_DOMAIN"
+        "domain_keyword": [
+          "gh-proxy"
         ],
-        "server": "tailscale-dns"
-      },
-      {
         "domain_suffix": [
-          "REPLACE_WITH_HEADSCALE_SERVER"
+          "gh-proxy.com"
         ],
         "server": "ali"
       },
@@ -181,11 +172,6 @@
       "tag": "Direct",
       "type": "direct",
       "domain_resolver": "ali"
-    },
-    {
-      "tag": "Direct-Tailscale",
-      "type": "direct",
-      "domain_resolver": "tailscale-dns"
     }
   ],
   "http_clients": [
@@ -196,42 +182,6 @@
   ],
   "route": {
     "rules": [
-      {
-        "type": "logical",
-        "mode": "and",
-        "rules": [
-          {
-            "port": [
-              53,
-              853
-            ],
-            "invert": true
-          },
-          {
-            "clash_mode": "Global",
-            "invert": true
-          },
-          {
-            "type": "logical",
-            "mode": "or",
-            "rules": [
-              {
-                "ip_is_private": true
-              },
-              {
-                "ip_cidr": [
-                  "100.64.0.0/10",
-                  "fd7a:115c:a1e0::/48"
-                ]
-              },
-              {
-                "rule_set": "geoip-cn"
-              }
-            ]
-          }
-        ],
-        "action": "bypass"
-      },
       {
         "type": "logical",
         "mode": "or",
@@ -272,29 +222,11 @@
         "outbound": "Direct"
       },
       {
-        "ip_cidr": [
-          "100.64.0.0/10",
-          "fd7a:115c:a1e0::/48"
+        "domain_keyword": [
+          "gh-proxy"
         ],
-        "outbound": "Direct-Tailscale"
-      },
-      {
         "domain_suffix": [
-          "REPLACE_WITH_HEADSCALE_BASE_DOMAIN"
-        ],
-        "outbound": "Direct-Tailscale"
-      },
-      {
-        "port": [
-          3478,
-          41641
-        ],
-        "network": "udp",
-        "outbound": "Direct"
-      },
-      {
-        "domain_suffix": [
-          "REPLACE_WITH_HEADSCALE_SERVER"
+          "gh-proxy.com"
         ],
         "outbound": "Direct"
       },
@@ -312,6 +244,11 @@
             ]
           }
         ],
+        "action": "reject",
+        "no_drop": true
+      },
+      {
+        "ip_version": 6,
         "action": "reject",
         "no_drop": true
       },
@@ -412,10 +349,6 @@
         "outbound": "Proxy"
       },
       {
-        "inbound": "mixed-in",
-        "action": "resolve"
-      },
-      {
         "rule_set": "geoip-telegram",
         "outbound": "Proxy"
       },
@@ -432,7 +365,7 @@
         ],
         "type": "remote",
         "format": "source",
-        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/RolinShmily/sub-rule/refs/heads/main/rules/{tag}.json"
+        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/RolinShmily/sub-rule/refs/heads/main/rules/{tag}.json"
       },
       {
         "tag": [
@@ -460,19 +393,19 @@
         ],
         "type": "remote",
         "format": "binary",
-        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/{tag}.srs"
+        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/{tag}.srs"
       },
       {
         "tag": "geoip-telegram",
         "type": "remote",
         "format": "binary",
-        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/telegram.srs"
+        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/telegram.srs"
       },
       {
         "tag": "geoip-cn",
         "type": "remote",
         "format": "binary",
-        "url": "REPLACE_WITH_RULESET_PROXY_PREFIXhttps://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
+        "url": "https://gh-proxy.com/https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
       }
     ],
     "final": "Proxy",
@@ -490,46 +423,16 @@
         "172.19.0.1/30",
         "fdfe:dcba:9876::1/126"
       ],
-      "auto_route": true,
-      "auto_redirect": true,
-      "route_exclude_address": [
-        "100.64.0.0/10",
-        "fd7a:115c:a1e0::/48"
-      ],
-      "exclude_interface": [
-        "tailscale0"
-      ]
-    },
-    {
-      "tag": "mixed-in",
-      "type": "mixed",
-      "listen": "127.0.0.1",
-      "listen_port": 2080
-    }
-  ],
-  "services": [
-    {
-      "type": "api",
-      "listen": "127.0.0.1",
-      "listen_port": 9090,
-      "secret": "REPLACE_WITH_API_SECRET",
-      "dashboard": {
-        "enabled": false
-      }
+      "auto_route": true
     }
   ],
   "experimental": {
     "cache_file": {
-      "enabled": true,
-      "store_dns": true
+      "enabled": true
     }
   },
   "certificate": {
     "store": "chrome"
-  },
-  "ntp": {
-    "enabled": true,
-    "server": "time.apple.com"
   },
   "log": {
     "disabled": false,

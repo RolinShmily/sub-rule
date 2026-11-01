@@ -9,4 +9,4 @@
 3. **完整保留 Tailscale / Headscale 直通**：
    包含 `Direct-Tailscale` 专属通道、`tailscale-dns` (100.100.100.100)、Windows 系统代理绕过名单及 Mihomo `direct-nameserver-follow-policy: true`。
 
-配套的服务端位于 `../server_v4only.json`。
+目录包含 `singbox/` 子目录（各平台 sing-box 客户端）以及根目录下的 `mihomo-clash.yaml`。配套的服务端位于 `../server_v4only.json`。

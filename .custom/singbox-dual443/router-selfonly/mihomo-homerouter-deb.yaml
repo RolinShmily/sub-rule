@@ -1,0 +1,361 @@
+# 专为 Debian 软路由定制的 Mihomo 配置文件 (v4only 纯 IPv4 加固)
+#
+# 核心特性：
+# 1. 下游隔离：auto-redirect 设为 false，严防 iptables 劫持下游 br-lan 网桥转发流量；
+# 2. 排除网段：route-exclude-address 与 rules 显式排除 192.168.0.0/16 (br-lan)、
+#    172.16.0.0/12、172.32.0.0/12 (高校校园网大二层/Portal 认证)、10.0.0.0/8 与 100.64.0.0/10 (Tailscale)；
+# 3. 局域网管理：mixed-port 7890 与 external-controller 0.0.0.0:9090，下游 Windows 可直接访问 Web 面板；
+# 4. Web Dashboard：默认预配置 metacubexd 面板（/etc/mihomo/dashboard），支持通过 RuleSetProxy 镜像下载；
+# 5. 纯 IPv4 加固：ipv6: false，规则层内置公网 IPv6 reject，0ms 秒退回退 IPv4；
+# 6. 应急直连：Proxy 策略组内置 Direct，自建节点失效时可在面板一键直连。
+# 凭据字段由 Update-SingboxDual443.sh / .ps1 自动识别并批量替换；切勿公开发布含真实凭据的文件。
+
+proxies:
+  - name: Reality
+    type: vless
+    server: REPLACE_WITH_NODE_ADDRESS
+    port: 443
+    uuid: REPLACE_WITH_UUID
+    udp: true
+    tls: true
+    network: tcp
+    flow: xtls-rprx-vision
+    servername: www.cloudflare.com
+    client-fingerprint: chrome
+    reality-opts:
+      public-key: REPLACE_WITH_REALITY_PUBLIC_KEY
+      short-id: '01234567'
+    smux:
+      enabled: true
+      padding: true
+  - name: Hysteria2
+    type: hysteria2
+    server: REPLACE_WITH_NODE_ADDRESS
+    port: 443
+    password: REPLACE_WITH_HYSTERIA2_PASSWORD
+    sni: REPLACE_WITH_HY2_SNI
+    skip-cert-verify: false
+  - name: Direct
+    type: direct
+    udp: true
+mixed-port: 7890
+allow-lan: true
+bind-address: "*"
+ipv6: false
+unified-delay: true
+tcp-concurrent: true
+log-level: info
+keep-alive-idle: 600
+keep-alive-interval: 15
+profile:
+  store-selected: true
+  store-fake-ip: true
+external-controller: 0.0.0.0:9090
+secret: REPLACE_WITH_API_SECRET
+external-ui: /etc/mihomo/dashboard
+external-ui-name: metacubexd
+external-ui-url: "https://gh-proxy.com/https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
+ntp:
+  enable: true
+  write-to-system: false
+tun:
+  enable: true
+  stack: system
+  dns-hijack:
+    - any:53
+    - tcp://any:53
+  auto-route: true
+  auto-redirect: false
+  auto-detect-interface: true
+  strict-route: false
+  route-exclude-address:
+    - 192.168.0.0/16
+    - 172.16.0.0/12
+    - 172.32.0.0/12
+    - 10.0.0.0/8
+    - 100.64.0.0/10
+sniffer:
+  enable: true
+  override-destination: false
+  force-dns-mapping: false
+  parse-pure-ip: true
+  sniff:
+    HTTP:
+      ports:
+        - 80
+        - 8080-8880
+    TLS:
+      ports:
+        - 443
+        - 8443
+    QUIC:
+      ports:
+        - 443
+        - 8443
+  skip-domain:
+    - Mijia Cloud
+    - +.push.apple.com
+dns:
+  enable: true
+  cache-algorithm: arc
+  ipv6: false
+  enhanced-mode: fake-ip
+  fake-ip-ttl: 1
+  fake-ip-range: 198.18.0.0/16
+  fake-ip-filter-mode: blacklist
+  default-nameserver:
+    - https://223.5.5.5/dns-query
+  proxy-server-nameserver:
+    - https://dns.alidns.com/dns-query
+    - https://doh.pub/dns-query
+  direct-nameserver:
+    - https://dns.alidns.com/dns-query
+    - https://doh.pub/dns-query
+  direct-nameserver-follow-policy: true
+  nameserver-policy:
+    '+.REPLACE_WITH_HEADSCALE_BASE_DOMAIN':
+      - 100.100.100.100
+    'gh-proxy.com,+.gh-proxy.com':
+      - https://dns.alidns.com/dns-query#disable-qtype-65=true
+      - https://doh.pub/dns-query#disable-qtype-65=true
+    rule-set:cn_domain,private_domain,fakeipfilter_cn,steamcn_domain,microsoftcn_domain,applecn_domain:
+      - https://dns.alidns.com/dns-query#disable-qtype-65=true
+      - https://doh.pub/dns-query#disable-qtype-65=true
+    rule-set:fakeipfilter_!cn:
+      - https://8.8.8.8/dns-query#Proxy&disable-qtype-65=true
+  nameserver:
+    - https://8.8.8.8/dns-query#Proxy&ecs=223.5.5.0/24
+  fallback:
+    - https://8.8.8.8/dns-query#Proxy
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+  fake-ip-filter:
+    - '+.REPLACE_WITH_HEADSCALE_BASE_DOMAIN'
+    - rule-set:fakeipfilter_cn
+    - rule-set:fakeipfilter_!cn
+    - rule-set:private_domain
+    - rule-set:cn_domain
+    - rule-set:microsoftcn_domain
+    - rule-set:applecn_domain
+    - rule-set:steamcn_domain
+proxy-groups:
+  - name: Proxy
+    type: select
+    proxies:
+      - Reality
+      - Hysteria2
+      - Direct
+rules:
+  - DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_SERVER,Direct
+  - DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_BASE_DOMAIN,Direct
+  - DOMAIN-KEYWORD,gh-proxy,Direct
+  - DOMAIN-SUFFIX,gh-proxy.com,Direct
+  - IP-CIDR,100.64.0.0/10,Direct,no-resolve
+  - IP-CIDR,172.32.0.0/12,Direct,no-resolve
+  - IP-CIDR6,fd7a:115c:a1e0::/48,Direct,no-resolve
+  - IP-CIDR6,::/0,REJECT,no-resolve
+  - DST-PORT,3478,Direct,no-resolve
+  - DST-PORT,41641,Direct,no-resolve
+  - RULE-SET,private_ip,Direct,no-resolve
+  - RULE-SET,private_domain,Direct
+  - RULE-SET,ai_domain,Proxy
+  - RULE-SET,youtube_domain,Proxy
+  - RULE-SET,google_domain,Proxy
+  - RULE-SET,github_domain,Proxy
+  - RULE-SET,onedrive_domain,Proxy
+  - RULE-SET,microsoftcn_domain,Direct
+  - RULE-SET,microsoft_domain,Proxy
+  - RULE-SET,applecn_domain,Direct
+  - RULE-SET,apple_domain,Proxy
+  - RULE-SET,telegram_domain,Proxy
+  - RULE-SET,tiktok_domain,Proxy
+  - RULE-SET,netflix_domain,Proxy
+  - RULE-SET,paypal_domain,Proxy
+  - RULE-SET,binance_domain,Proxy
+  - RULE-SET,okx_domain,Proxy
+  - RULE-SET,usd_domain,Proxy
+  - RULE-SET,steamcn_domain,Direct
+  - RULE-SET,steam_domain,Proxy
+  - RULE-SET,cn!_domain,Proxy
+  - RULE-SET,google_ip,Proxy
+  - RULE-SET,apple_ip,Proxy
+  - RULE-SET,telegram_ip,Proxy
+  - RULE-SET,netflix_ip,Proxy
+  - RULE-SET,cn_ip,Direct
+  - MATCH,Proxy
+rule-providers:
+  fakeipfilter_cn:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: text
+    url: https://gh-proxy.com/https://raw.githubusercontent.com/RolinShmily/sub-rule/refs/heads/main/rules/fakeipfilter-cn.list
+  fakeipfilter_!cn:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: text
+    url: https://gh-proxy.com/https://raw.githubusercontent.com/RolinShmily/sub-rule/refs/heads/main/rules/fakeipfilter-!cn.list
+  private_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/private.mrs
+  ai_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/category-ai-!cn.mrs
+  youtube_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/youtube.mrs
+  google_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/google.mrs
+  github_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/github.mrs
+  onedrive_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/onedrive.mrs
+  microsoftcn_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/microsoft@cn.mrs
+  microsoft_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/microsoft.mrs
+  applecn_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/apple@cn.mrs
+  apple_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/apple.mrs
+  telegram_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/telegram.mrs
+  tiktok_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/tiktok.mrs
+  netflix_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/netflix.mrs
+  paypal_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/paypal.mrs
+  binance_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/binance.mrs
+  okx_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/okx.mrs
+  usd_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/category-cryptocurrency.mrs
+  steamcn_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/steam@cn.mrs
+  steam_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/steam.mrs
+  cn!_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/geolocation-!cn.mrs
+  cn_domain:
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/cn.mrs
+  google_ip:
+    type: http
+    interval: 86400
+    behavior: ipcidr
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geoip/google.mrs
+  apple_ip:
+    type: http
+    interval: 86400
+    behavior: ipcidr
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo-lite/geoip/apple.mrs
+  telegram_ip:
+    type: http
+    interval: 86400
+    behavior: ipcidr
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geoip/telegram.mrs
+  netflix_ip:
+    type: http
+    interval: 86400
+    behavior: ipcidr
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geoip/netflix.mrs
+  cn_ip:
+    type: http
+    interval: 86400
+    behavior: ipcidr
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geoip/cn.mrs
+  private_ip:
+    type: http
+    interval: 86400
+    behavior: ipcidr
+    format: mrs
+    url: https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geoip/private.mrs
