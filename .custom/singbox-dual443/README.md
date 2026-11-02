@@ -1,6 +1,9 @@
-# 双 443：Debian VPS 服务端、Mihomo 客户端与软路由方案
+# 双 443 + CDN：Debian VPS 服务端、Mihomo 客户端与软路由方案
 
-本方案专为自建双 443 协议节点打造：VLESS-Reality 监听 **TCP 443**，Hysteria2 监听 **UDP 443**。端口完全复用互不冲突，Nginx 伪装站独立监听 TCP 8443。
+本方案专为自建高性能代理打造，整合三种协议形态：
+1. **VLESS-Vision-REALITY**：监听 **TCP 443**，借用大厂证书直连伪装；
+2. **Hysteria 2**：监听 **UDP 443**，双 443 复用互不冲突，极速抗丢包；
+3. **VLESS-WS-TLS**：监听 **TCP 8443**，专门配合 Cloudflare CDN（橙云代理）与客户端社区优选域名/优选 IP。
 
 ---
 
@@ -9,15 +12,15 @@
 | 路径 | 说明 |
 | :--- | :--- |
 | `server/` | 服务端配置目录 |
-| ├─ `server.json` | 通用双栈 VPS 服务端（Reality TCP 443 + Hy2 UDP 443） |
+| ├─ `server.json` | 通用双栈 VPS 服务端（Reality TCP 443 + Hy2 UDP 443 + VLESS-WS TCP 8443） |
 | └─ `server_v4only.json` | 纯 IPv4 VPS 服务端（安全拒绝公网 IPv6 请求） |
 | `client/` | 客户端配置目录（Windows / macOS / Linux 通用） |
-| ├─ `mihomo-clash.yaml` | 通用双栈客户端配置 |
+| ├─ `mihomo-clash.yaml` | 通用双栈客户端配置（内置 Reality / Hysteria2 / VLESS-WS-CF 三节点） |
 | └─ `mihomo-clash-v4only.yaml` | 纯 IPv4 VPS 专属客户端配置（本地 0ms 截断公网 IPv6，触发 Happy Eyeballs 秒退走 IPv4） |
 | `router-selfonly/` | Debian 软路由专用本机透明代理与下游物理隔离方案 |
 | ├─ `mihomo-homerouter-deb.yaml` | 软路由专用配置（纯 IPv4 加固、TUN `auto-redirect: false`、排除校园网与局域网、支持 `proxy-providers` 外部订阅） |
 | └─ `setup-router-guard.sh` | 一键策略路由脚本，将 `iif br-lan` 钉死在主路由表，下游发出的流量 100% 纯软路由透传 |
-| `nodes/` | 节点分享链接（`vless.txt` 与 `hysteria2.txt`，由脚本自动同步生成，与服务端同源） |
+| `nodes/` | 节点分享链接（`vless.txt`、`hysteria2.txt` 与 `vless_ws.txt`，由脚本自动同步生成，与服务端同源） |
 | `Update-SingboxDual443.py` | 全平台统一批量原地凭据覆写脚本（Python 3 原生，无第三方依赖，支持 Linux/macOS/Windows） |
 | `../archives/` | **历史版本归档**：历史 sing-box 客户端与软路由全套配置已移入该目录保存 |
 
@@ -25,23 +28,33 @@
 
 ## 脚本参数说明
 
-直接编辑 `Update-SingboxDual443.py` 顶部的 `CONFIG` 字典，填入参数后再运行脚本：
+直接编辑 `Update-SingboxDual443.py` 顶部的 `CONFIG` 字典，配置区按协议与杂项清晰分隔：
 
-| CONFIG 字段 | 用途说明 |
-| :--- | :--- |
-| `NodeAddress` | 客户端连接的 VPS 域名或 IP（对应 `REPLACE_WITH_NODE_ADDRESS`） |
-| `Hy2Sni` | Hy2 证书实际覆盖的域名（对应 `REPLACE_WITH_HY2_SNI`） |
-| `RealitySni` | Reality 握手 SNI，需与服务端 `server_name` 对应（默认 `www.cloudflare.com`） |
-| `HandshakeHost` / `HandshakePort` | 服务端 Reality 回落握手目标与端口（默认 `www.cloudflare.com:443`） |
-| `Uuid` / `ShortId` | VLESS UUID 与 short ID（2-16 位偶数长度十六进制） |
-| `RealityPrivateKey` / `RealityPublicKey` | Reality 密钥对；私钥只写服务端，公钥只写客户端 |
-| `Hy2Password` | Hy2 连接密码（服务端与客户端一致） |
-| `CertificatePath` / `KeyPath` | Debian VPS 上证书链与私钥的绝对路径（对应 `REPLACE_WITH_CERTIFICATE_PATH` / `KEY_PATH`） |
-| `SingboxApiSecret` / `MihomoApiSecret` | 本机控制 API 密钥（对应 `REPLACE_WITH_API_SECRET`，访问 Web 面板凭据） |
-| `HeadscaleServer` / `HeadscaleBaseDomain` | （可选）Headscale 控制面域名与 MagicDNS 域名；留空 `''` 时脚本自动剔除规则 |
-| `RuleSetProxy` | （可选）规则集与 Dashboard 下载镜像前缀，默认预设为 `https://gh-proxy.com/`，必须以 `/` 结尾。留空 `''` 则直连上游下载 |
-| `ExternalSubscribes` | （可选）第三方外部机场订阅链接列表（原生列表 `["https://..."]`；留空 `[]` 时保持纯净不启用） |
-| `ApplySubscribesToClients` | （开关）外部订阅是否同时作用于客户端配置（`True`: 客户端也注入订阅；`False`（默认）: 仅软路由注入，客户端保持纯净自建） |
+| 协议分类 | CONFIG 字段 | 用途说明 |
+| :--- | :--- | :--- |
+| **协议一：REALITY** | `NodeAddress` | VPS 直连 IP 或未开启 CDN 代理的直连域名 |
+| | `RealityPort` | REALITY 监听与连接端口（默认 443） |
+| | `Uuid` | VLESS 协议用户 UUID |
+| | `RealitySni` | Reality 握手 SNI，需与服务端 `server_name` 对应（默认 `www.cloudflare.com`） |
+| | `RealityPublicKey` / `RealityPrivateKey` | Reality 密钥对；私钥只写服务端，公钥只写客户端 |
+| | `ShortId` | 2-16 位偶数长度十六进制 ShortId |
+| | `HandshakeHost` / `HandshakePort` | 服务端 Reality 回落握手目标与端口（默认 `www.cloudflare.com:443`） |
+| **协议二：Hysteria 2** | `Hy2Port` | Hysteria 2 监听与连接端口（默认 UDP 443） |
+| | `Hy2Sni` | Hy2 证书实际覆盖的域名（在 Cloudflare 保持灰云直连） |
+| | `Hy2Password` | Hy2 连接认证密码 |
+| | `CertificatePath` / `KeyPath` | Debian VPS 上证书链与私钥绝对路径 |
+| **协议三：VLESS-WS (CDN)** | `WsOptimizedDomain` | 客户端连接目标：社区分享的优选域名或 Anycast 优选 IP |
+| | `WsPort` | 监听与 Cloudflare 转发端口（推荐 8443） |
+| | `WsSni` | CDN 代理域名（在 Cloudflare 开启橙云，如 `cdn.example.com`） |
+| | `WsUuid` | VLESS WS 用户 UUID（可与 Uuid 相同或独立） |
+| | `WsPath` | WebSocket 传输路径（如 `/api/v3/tunnel-stream`） |
+| | `WsCertificatePath` / `WsKeyPath` | 服务端证书与私钥绝对路径（泛域名证书可与 Hy2 相同） |
+| | `WsMaxEarlyData` / `WsEarlyDataHeader` | 0-RTT 握手首包长度（默认 2048）与报头名称 |
+| **公共与系统杂项** | `MihomoApiSecret` | 本机控制 API 密钥（对应 `REPLACE_WITH_API_SECRET`，访问 Web 面板凭据） |
+| | `HeadscaleServer` / `HeadscaleBaseDomain` | （可选）Headscale 控制面域名与 MagicDNS 域名；留空 `''` 时脚本自动剔除规则 |
+| | `RuleSetProxy` | （可选）规则集与 Dashboard 下载镜像前缀（默认 `https://gh-proxy.com/`） |
+| | `ExternalSubscribes` | （可选）第三方外部机场订阅链接列表（原生列表 `["https://..."]`；留空 `[]` 时保持纯净不启用） |
+| | `ApplySubscribesToClients` | （开关）外部订阅是否同时作用于客户端配置（`True`/`False`） |
 
 > 生成密钥对命令：
 > ```bash

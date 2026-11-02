@@ -47,7 +47,7 @@ proxies:
     client-fingerprint: chrome
     reality-opts:
       public-key: REPLACE_WITH_REALITY_PUBLIC_KEY
-      short-id: '01234567'
+      short-id: REPLACE_WITH_REALITY_SHORT_ID
     # 注意：使用 xtls-rprx-vision 流控时严禁开启 smux 多路复用，否则会破坏 TLS 记录层填充导致协议断流
     smux:
       enabled: false
@@ -59,6 +59,23 @@ proxies:
     password: REPLACE_WITH_HYSTERIA2_PASSWORD
     sni: REPLACE_WITH_HY2_SNI
     skip-cert-verify: false
+
+  - name: VLESS-WS-CF
+    type: vless
+    server: REPLACE_WITH_CF_OPTIMIZED_DOMAIN
+    port: 8443
+    uuid: REPLACE_WITH_WS_UUID
+    udp: true
+    tls: true
+    network: ws
+    servername: REPLACE_WITH_WS_SNI
+    client-fingerprint: chrome
+    ws-opts:
+      path: REPLACE_WITH_WS_PATH
+      headers:
+        Host: REPLACE_WITH_WS_SNI
+      max-early-data: 2048
+      early-data-header-name: Sec-WebSocket-Protocol
 
   - name: Direct
     type: direct
@@ -162,6 +179,9 @@ dns:
     - https://doh.pub/dns-query
   direct-nameserver-follow-policy: true
   nameserver-policy:
+    'REPLACE_WITH_HEADSCALE_SERVER':
+      - https://dns.alidns.com/dns-query#disable-qtype-65=true
+      - https://doh.pub/dns-query#disable-qtype-65=true
     '+.REPLACE_WITH_HEADSCALE_BASE_DOMAIN':
       - 100.100.100.100
     'gh-proxy.com,+.gh-proxy.com':
@@ -180,6 +200,8 @@ dns:
     geoip: true
     geoip-code: CN
   fake-ip-filter:
+    - 'REPLACE_WITH_HEADSCALE_SERVER'
+    - '+.REPLACE_WITH_HEADSCALE_SERVER'
     - '+.REPLACE_WITH_HEADSCALE_BASE_DOMAIN'
     - rule-set:fakeipfilter_cn
     - rule-set:fakeipfilter_!cn
@@ -198,6 +220,7 @@ proxy-groups:
     proxies:
       - Reality
       - Hysteria2
+      - VLESS-WS-CF
       - Direct
 
 # ==============================================================================

@@ -23,39 +23,66 @@ import urllib.parse
 # 用户参数配置（请只在本机填写；切勿将含真实密钥的文件提交到公开仓库）
 # ==============================================================================
 CONFIG = {
-    # 基础节点连接参数
-    "NodeAddress": "REPLACE_WITH_NODE_ADDRESS",           # VPS 域名或 IP，客户端连接地址
-    "Hy2Sni": "REPLACE_WITH_HY2_SNI",                    # Hy2 证书覆盖的域名
-    "RealitySni": "REPLACE_WITH_REALITY_SNI",            # Reality 客户端 SNI / 服务端 server_name
-    "HandshakeHost": "REPLACE_WITH_REALITY_HANDSHAKE_HOST", # Reality 握手目标主机；可与 SNI 不同
-    "HandshakePort": 443,                                # Reality 握手目标端口；Nginx 8443 时改为 8443
+    # --------------------------------------------------------------------------
+    # 【协议一：VLESS-Vision-REALITY (TCP 443 直连)】
+    # --------------------------------------------------------------------------
+    # --- 核心连接与凭据 ---
+    "NodeAddress": "REPLACE_WITH_NODE_ADDRESS",                  # VPS 直连 IP 或未开启 CDN 代理的直连域名
+    "RealityPort": 443,                                          # REALITY 监听与连接端口（默认 443）
+    "Uuid": "REPLACE_WITH_UUID",                                 # VLESS 协议用户 UUID
+    "RealitySni": "REPLACE_WITH_REALITY_SNI",                    # 偷取的 SNI 域名（如 www.apple.com）
+    "RealityPublicKey": "REPLACE_WITH_REALITY_PUBLIC_KEY",       # REALITY 客户端公钥 (43位 Base64URL)
+    "RealityPrivateKey": "REPLACE_WITH_REALITY_PRIVATE_KEY",     # REALITY 服务端私钥 (43位 Base64URL)
+    "ShortId": "REPLACE_WITH_REALITY_SHORT_ID",                  # 2-16 位偶数长度十六进制 ShortId
+    # --- 协议杂项 ---
+    "HandshakeHost": "REPLACE_WITH_REALITY_HANDSHAKE_HOST",      # 握手回落目标主机（如 www.apple.com）
+    "HandshakePort": 443,                                        # 握手回落目标端口（默认 443）
 
-    # 凭据与密钥
-    "Uuid": "REPLACE_WITH_UUID",                         # VLESS UUID
-    "RealityPrivateKey": "REPLACE_WITH_REALITY_PRIVATE_KEY",    # 只写服务端 (43位 Base64URL)
-    "RealityPublicKey": "REPLACE_WITH_REALITY_PUBLIC_KEY",     # 只写客户端 (43位 Base64URL)
-    "ShortId": "REPLACE_WITH_REALITY_SHORT_ID",           # 2-16 位偶数长度十六进制
-    "Hy2Password": "REPLACE_WITH_HYSTERIA2_PASSWORD",     # Hy2 连接密码
-    "CertificatePath": "REPLACE_WITH_CERTIFICATE_PATH",   # Debian VPS 上证书链 fullchain.pem 绝对路径
-    "KeyPath": "REPLACE_WITH_KEY_PATH",                   # Debian VPS 上私钥 privkey.pem 绝对路径
-    "SingboxApiSecret": "REPLACE_WITH_SINGBOX_API_SECRET",     # sing-box 客户端控制 API 密钥
-    "MihomoApiSecret": "REPLACE_WITH_MIHOMO_API_SECRET",       # Mihomo 控制 API 密钥（Web 面板访问密码）
+    # --------------------------------------------------------------------------
+    # 【协议二：Hysteria 2 (UDP 443 直连)】
+    # --------------------------------------------------------------------------
+    # --- 核心连接与凭据 ---
+    "Hy2Port": 443,                                              # Hysteria 2 监听与连接端口（默认 UDP 443）
+    "Hy2Sni": "REPLACE_WITH_HY2_SNI",                            # Hy2 域名（如 hy2.example.com，必须与证书一致且为灰云）
+    "Hy2Password": "REPLACE_WITH_HYSTERIA2_PASSWORD",            # Hy2 连接密码（建议 16 位以上强密码）
+    # --- 协议杂项 ---
+    "CertificatePath": "REPLACE_WITH_CERTIFICATE_PATH",          # 服务端证书 fullchain.pem 绝对路径
+    "KeyPath": "REPLACE_WITH_KEY_PATH",                          # 服务端私钥 privkey.pem 绝对路径
 
-    # （可选）Headscale / Tailscale 自建组网直连（不使用时保持空字符串 '' 或占位符即可）
-    "HeadscaleServer": "REPLACE_WITH_HEADSCALE_SERVER",      # 控制面域名，例如 'hs.example.com'
-    "HeadscaleBaseDomain": "REPLACE_WITH_HEADSCALE_BASE_DOMAIN",  # MagicDNS 根域名，例如 'tail.net'
+    # --------------------------------------------------------------------------
+    # 【协议三：VLESS-WS-TLS (TCP 8443 套 Cloudflare CDN)】
+    # --------------------------------------------------------------------------
+    # --- 核心连接与凭据 ---
+    "WsOptimizedDomain": "REPLACE_WITH_CF_OPTIMIZED_DOMAIN",     # 客户端连接地址：社区优选域名或 Anycast 优选 IP
+    "WsPort": 8443,                                              # 监听与转发端口（推荐 8443，需为 CF 支持的 HTTPS 端口）
+    "WsSni": "REPLACE_WITH_WS_SNI",                              # CDN 代理域名（如 cdn.example.com，在 CF 开启橙云）
+    "WsUuid": "REPLACE_WITH_WS_UUID",                            # VLESS WS 用户 UUID（可与 Uuid 相同或独立）
+    # --- 协议杂项 ---
+    "WsPath": "REPLACE_WITH_WS_PATH",                            # WebSocket 传输路径（如 /api/v3/tunnel-stream）
+    "WsCertificatePath": "REPLACE_WITH_WS_CERTIFICATE_PATH",     # 服务端证书路径（若与 Hy2 同为泛域名可填相同路径）
+    "WsKeyPath": "REPLACE_WITH_WS_KEY_PATH",                     # 服务端私钥路径
+    "WsMaxEarlyData": 2048,                                      # 0-RTT 握手首包最大长度（字节，默认 2048）
+    "WsEarlyDataHeader": "Sec-WebSocket-Protocol",               # Early Data 传递标头名称
 
-    # （可选）规则集与 Dashboard 下载代理前缀（必须以 / 结尾；留空 '' 表示直连下载）
-    "RuleSetProxy": "https://gh-proxy.com/",
+    # --------------------------------------------------------------------------
+    # 【公共与系统杂项 (Miscellaneous / System)】
+    # --------------------------------------------------------------------------
+    # --- 客户端面板与 API 控制杂项 ---
+    "MihomoApiSecret": "REPLACE_WITH_MIHOMO_API_SECRET",         # Mihomo 控制 API 密钥（Web 面板访问密码）
 
-    # （可选）软路由第三方外部订阅链接列表（留空 [] 表示不启用）
+    # --- 虚拟组网直连杂项（Headscale / Tailscale，可选）---
+    "HeadscaleServer": "REPLACE_WITH_HEADSCALE_SERVER",          # 控制面域名，例如 'hs.example.com'
+    "HeadscaleBaseDomain": "REPLACE_WITH_HEADSCALE_BASE_DOMAIN", # MagicDNS 根域名，例如 'tail.net'
+
+    # --- 规则集与资源下载杂项 ---
+    "RuleSetProxy": "https://gh-proxy.com/",                     # 规则集与 Dashboard 下载代理前缀（必须以 / 结尾）
+
+    # --- 软路由第三方外部订阅杂项 ---
     "ExternalSubscribes": [
         # "https://airport1.com/api/v1/client/subscribe?token=xxxxxx",
         # "https://airport2.com/api/v1/client/subscribe?token=yyyyyy",
     ],
-
-    # （开关）外部订阅是否同时作用于客户端配置（True: 客户端也注入订阅；False: 仅软路由注入，客户端保持纯净自建）
-    "ApplySubscribesToClients": False,
+    "ApplySubscribesToClients": False,                           # 外部订阅是否同时作用于客户端配置（True/False）
 }
 
 # ==============================================================================
@@ -66,7 +93,12 @@ RULESET_PROXY_PLACEHOLDER = "REPLACE_WITH_RULESET_PROXY_PREFIX"
 
 def assert_values(values):
     """校验参数有效性，确保不带未填写的占位符且格式符合各协议规范。"""
-    optional_keys = {"HeadscaleServer", "HeadscaleBaseDomain", "RuleSetProxy", "ExternalSubscribes", "ApplySubscribesToClients"}
+    optional_keys = {
+        "HeadscaleServer", "HeadscaleBaseDomain", "RuleSetProxy",
+        "ExternalSubscribes", "ApplySubscribesToClients",
+        "RealityPort", "Hy2Port", "WsPort",
+        "WsMaxEarlyData", "WsEarlyDataHeader"
+    }
     for key, val in values.items():
         if key == "HandshakePort" or key in optional_keys:
             continue
@@ -74,39 +106,45 @@ def assert_values(values):
         if not val_str or val_str.startswith("REPLACE_WITH_"):
             raise ValueError(f"请先在 CONFIG 中填写 {key}；未修改任何配置。")
 
-    uuid_str = str(values["Uuid"]).strip()
-    try:
-        uuid.UUID(uuid_str)
-        if not re.fullmatch(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", uuid_str):
-            raise ValueError()
-    except Exception:
-        raise ValueError("Uuid 必须是有效的 UUID 格式；未修改任何配置。")
+    for key in ["Uuid", "WsUuid"]:
+        uuid_str = str(values[key]).strip()
+        try:
+            uuid.UUID(uuid_str)
+            if not re.fullmatch(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", uuid_str):
+                raise ValueError()
+        except Exception:
+            raise ValueError(f"{key} 必须是有效的 UUID 格式；未修改任何配置。")
 
     short_id = str(values["ShortId"]).strip()
     if not re.fullmatch(r"^(?:[0-9a-fA-F]{2}){1,8}$", short_id):
         raise ValueError("ShortId 必须是 2-16 位偶数长度的十六进制字符串；未修改任何配置。")
 
-    try:
-        port = int(values["HandshakePort"])
-        if port < 1 or port > 65535:
-            raise ValueError()
-    except Exception:
-        raise ValueError("HandshakePort 必须在 1-65535 之间；未修改任何配置。")
+    for key in ["HandshakePort", "RealityPort", "Hy2Port", "WsPort"]:
+        try:
+            port = int(values.get(key, 0))
+            if port < 1 or port > 65535:
+                raise ValueError()
+        except Exception:
+            raise ValueError(f"{key} 必须在 1-65535 之间；未修改任何配置。")
 
     for key in ["RealityPrivateKey", "RealityPublicKey"]:
         val = str(values[key]).strip()
         if not re.fullmatch(r"^[A-Za-z0-9_-]{43}$", val):
             raise ValueError(f"{key} 的格式不是 43 位 Base64URL；未修改任何配置。")
 
-    for key in ["CertificatePath", "KeyPath"]:
+    for key in ["CertificatePath", "KeyPath", "WsCertificatePath", "WsKeyPath"]:
         val = str(values[key]).strip()
         if not val.startswith("/"):
             raise ValueError(f"{key} 必须是 Debian 上的绝对路径；未修改任何配置。")
 
-    for key in ["NodeAddress", "Hy2Sni", "RealitySni", "HandshakeHost"]:
+    for key in ["NodeAddress", "Hy2Sni", "RealitySni", "HandshakeHost", "WsOptimizedDomain", "WsSni"]:
         val = str(values[key]).strip()
         if re.search(r"[\s/]", val):
             raise ValueError(f"{key} 只能填主机名或 IP，不要带协议或路径；未修改任何配置。")
+
+    ws_path = str(values["WsPath"]).strip()
+    if not ws_path.startswith("/") or re.search(r"\s", ws_path):
+        raise ValueError("WsPath 必须以 / 开头且不能包含空格；未修改任何配置。")
 
     for key in ["HeadscaleServer", "HeadscaleBaseDomain"]:
         val = str(values[key]).strip()
@@ -119,7 +157,7 @@ def assert_values(values):
         if not re.fullmatch(r"https?://[^\s]+/", prefix):
             raise ValueError("RuleSetProxy 必须以 http:// 或 https:// 开头并以 / 结尾（如 https://gh-proxy.com/）；留空 '' 表示直连下载。")
 
-    for key in ["Hy2Password", "SingboxApiSecret", "MihomoApiSecret"]:
+    for key in ["Hy2Password", "MihomoApiSecret"]:
         val = str(values[key])
         if re.search(r"[\r\n]", val) or len(val) < 16:
             raise ValueError(f"{key} 至少 16 位且不能包含换行；未修改任何配置。")
@@ -273,6 +311,8 @@ def apply_proxy_providers_to_yaml(text, subs, is_router=True, apply_to_client=Fa
 
 
 def convert_to_yaml_scalar(value):
+    if isinstance(value, int):
+        return str(value)
     return "'" + str(value).replace("'", "''") + "'"
 
 
@@ -286,7 +326,7 @@ def set_yaml_field(block, field, spaces, value):
 
 
 def set_yaml_proxy(text, name, fields):
-    pattern = rf'(?ms)^(  - name: {re.escape(name)}[^\r\n]*\r?\n)(.*?)(?=^  - name: |^[^\s#]|\z)'
+    pattern = rf'(?ms)^(  - name: {re.escape(name)}[^\r\n]*\r?\n)(.*?)(?=^  - name: |^[^\s#]|\Z)'
     matches = list(re.finditer(pattern, text))
     if len(matches) != 1:
         raise ValueError(f"无法唯一定位 Mihomo 节点 {name}；未修改任何配置。")
@@ -306,25 +346,30 @@ def update_server(path):
     inbounds = cfg.get("inbounds", [])
     vless_list = [ib for ib in inbounds if ib.get("tag") == "VLESS-Vision-Reality-in" and ib.get("type") == "vless"]
     hy2_list = [ib for ib in inbounds if ib.get("tag") == "hysteria-in" and ib.get("type") == "hysteria2"]
+    ws_list = [ib for ib in inbounds if ib.get("tag") == "vless-ws-in" and ib.get("type") == "vless"]
 
     vless = get_one(vless_list, "服务端 Reality 入站")
     hy2 = get_one(hy2_list, "服务端 Hy2 入站")
-
-    if vless.get("listen_port") != 443 or hy2.get("listen_port") != 443:
-        raise ValueError("服务端不再是 TCP/UDP 双 443 模板；未修改任何配置。")
+    ws = get_one(ws_list, "服务端 VLESS-WS 入站")
 
     for fld in ["users", "tls"]:
         assert_field(vless, fld, "服务端 Reality")
         assert_field(hy2, fld, "服务端 Hy2")
+        assert_field(ws, fld, "服务端 VLESS-WS")
 
     user = get_one(vless.get("users", []), "服务端 Reality 用户")
     hy2_user = get_one(hy2.get("users", []), "服务端 Hy2 用户")
+    ws_user = get_one(ws.get("users", []), "服务端 VLESS-WS 用户")
 
     assert_field(vless["tls"], "reality", "服务端 Reality TLS")
     assert_field(vless["tls"]["reality"], "handshake", "服务端 Reality")
     for fld in ["certificate_path", "key_path", "server_name"]:
         assert_field(hy2["tls"], fld, "服务端 Hy2 TLS")
+        assert_field(ws["tls"], fld, "服务端 VLESS-WS TLS")
+    assert_field(ws, "transport", "服务端 VLESS-WS Transport")
 
+    # 协议一：Reality
+    vless["listen_port"] = int(CONFIG.get("RealityPort", 443))
     user["uuid"] = CONFIG["Uuid"]
     vless["tls"]["server_name"] = CONFIG["RealitySni"]
     vless["tls"]["reality"]["handshake"]["server"] = CONFIG["HandshakeHost"]
@@ -332,10 +377,25 @@ def update_server(path):
     vless["tls"]["reality"]["private_key"] = CONFIG["RealityPrivateKey"]
     vless["tls"]["reality"]["short_id"] = [CONFIG["ShortId"]]
 
+    # 协议二：Hysteria 2
+    hy2["listen_port"] = int(CONFIG.get("Hy2Port", 443))
     hy2_user["password"] = CONFIG["Hy2Password"]
     hy2["tls"]["server_name"] = CONFIG["Hy2Sni"]
     hy2["tls"]["certificate_path"] = CONFIG["CertificatePath"]
     hy2["tls"]["key_path"] = CONFIG["KeyPath"]
+
+    # 协议三：VLESS-WS-TLS (套 Cloudflare CDN)
+    ws["listen_port"] = int(CONFIG.get("WsPort", 8443))
+    ws_user["uuid"] = CONFIG["WsUuid"]
+    ws["tls"]["server_name"] = CONFIG["WsSni"]
+    ws["tls"]["certificate_path"] = CONFIG["WsCertificatePath"]
+    ws["tls"]["key_path"] = CONFIG["WsKeyPath"]
+    ws["transport"]["path"] = CONFIG["WsPath"]
+    if "headers" not in ws["transport"] or not isinstance(ws["transport"]["headers"], dict):
+        ws["transport"]["headers"] = {}
+    ws["transport"]["headers"]["Host"] = CONFIG["WsSni"]
+    ws["transport"]["max_early_data"] = int(CONFIG.get("WsMaxEarlyData", 2048))
+    ws["transport"]["early_data_header_name"] = str(CONFIG.get("WsEarlyDataHeader", "Sec-WebSocket-Protocol"))
 
     return json.dumps(cfg, indent=2, ensure_ascii=False)
 
@@ -370,7 +430,7 @@ def update_singbox_client(path):
     for service in cfg.get("services", []):
         if service.get("type") == "api":
             assert_field(service, "secret", f"{path} API")
-            service["secret"] = CONFIG["SingboxApiSecret"]
+            service["secret"] = CONFIG.get("SingboxApiSecret", CONFIG.get("MihomoApiSecret", ""))
 
     hs_server = CONFIG.get("HeadscaleServer", "")
     if hs_server.startswith("REPLACE_WITH_"):
@@ -475,6 +535,7 @@ def update_mihomo(path):
 
     text = set_yaml_proxy(text, "Reality", {
         "server": (4, CONFIG["NodeAddress"]),
+        "port": (4, int(CONFIG.get("RealityPort", 443))),
         "uuid": (4, CONFIG["Uuid"]),
         "servername": (4, CONFIG["RealitySni"]),
         "public-key": (6, CONFIG["RealityPublicKey"]),
@@ -482,8 +543,19 @@ def update_mihomo(path):
     })
     text = set_yaml_proxy(text, "Hysteria2", {
         "server": (4, CONFIG["NodeAddress"]),
+        "port": (4, int(CONFIG.get("Hy2Port", 443))),
         "password": (4, CONFIG["Hy2Password"]),
         "sni": (4, CONFIG["Hy2Sni"]),
+    })
+    text = set_yaml_proxy(text, "VLESS-WS-CF", {
+        "server": (4, CONFIG["WsOptimizedDomain"]),
+        "port": (4, int(CONFIG.get("WsPort", 8443))),
+        "uuid": (4, CONFIG["WsUuid"]),
+        "servername": (4, CONFIG["WsSni"]),
+        "path": (6, CONFIG["WsPath"]),
+        "Host": (8, CONFIG["WsSni"]),
+        "max-early-data": (6, int(CONFIG.get("WsMaxEarlyData", 2048))),
+        "early-data-header-name": (6, CONFIG.get("WsEarlyDataHeader", "Sec-WebSocket-Protocol")),
     })
     text = set_yaml_field(text, "secret", 0, CONFIG["MihomoApiSecret"])
 
@@ -501,8 +573,14 @@ def update_mihomo(path):
 
     if hs_server:
         text = re.sub(r'(?m)^\s*-\s*DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_SERVER,', f"  - DOMAIN-SUFFIX,{hs_server},", text)
+        text = re.sub(r"(?m)^\s*-\s*'REPLACE_WITH_HEADSCALE_SERVER'", f"    - '{hs_server}'", text)
+        text = re.sub(r"(?m)^\s*-\s*'\+\.REPLACE_WITH_HEADSCALE_SERVER'", f"    - '+.{hs_server}'", text)
+        text = re.sub(r"(?m)^\s*'REPLACE_WITH_HEADSCALE_SERVER':", f"    '{hs_server},+.{hs_server}':", text)
     else:
         text = re.sub(r'(?m)^\s*-\s*DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_SERVER,[^\r\n]*\r?\n?', "", text)
+        text = re.sub(r"(?m)^\s*-\s*'REPLACE_WITH_HEADSCALE_SERVER'[^\r\n]*\r?\n?", "", text)
+        text = re.sub(r"(?m)^\s*-\s*'\+\.REPLACE_WITH_HEADSCALE_SERVER'[^\r\n]*\r?\n?", "", text)
+        text = re.sub(r"(?m)^\s*'REPLACE_WITH_HEADSCALE_SERVER':[^\r\n]*\r?\n(?:\s+-[^\r\n]+\r?\n)+", "", text)
 
     if hs_domain:
         text = re.sub(r'(?m)^\s*-\s*DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_BASE_DOMAIN,', f"  - DOMAIN-SUFFIX,{hs_domain},", text)
@@ -533,25 +611,38 @@ def render_node_links(root, is_preview=False):
     """用与 server.json 同一批取值生成 nodes/*.txt 分享链接，避免两端不一致。"""
     node = str(CONFIG["NodeAddress"]).strip()
     node_encoded = urllib.parse.quote(node, safe="")
+    reality_port = int(CONFIG.get("RealityPort", 443))
+    hy2_port = int(CONFIG.get("Hy2Port", 443))
     sni = urllib.parse.quote(str(CONFIG["RealitySni"]).strip(), safe=".-_")
     hy2_sni = urllib.parse.quote(str(CONFIG["Hy2Sni"]).strip(), safe=".-_")
     hy2_password = urllib.parse.quote(str(CONFIG["Hy2Password"]), safe="")
 
     vless_url = (
-        f"vless://{CONFIG['Uuid']}@{node_encoded}:443"
+        f"vless://{CONFIG['Uuid']}@{node_encoded}:{reality_port}"
         f"?encryption=none&flow=xtls-rprx-vision&security=reality"
         f"&sni={sni}&fp=chrome&pbk={CONFIG['RealityPublicKey']}"
         f"&sid={CONFIG['ShortId']}&type=tcp&headerType=none#Reality"
     )
     hy2_url = (
-        f"hysteria2://{hy2_password}@{node_encoded}:443/"
+        f"hysteria2://{hy2_password}@{node_encoded}:{hy2_port}/"
         f"?sni={hy2_sni}&insecure=0#Hysteria2"
+    )
+
+    ws_opt = urllib.parse.quote(str(CONFIG["WsOptimizedDomain"]).strip(), safe="")
+    ws_sni = urllib.parse.quote(str(CONFIG["WsSni"]).strip(), safe=".-_")
+    ws_path = urllib.parse.quote(str(CONFIG["WsPath"]).strip(), safe="/?=&")
+    ws_port = int(CONFIG.get("WsPort", 8443))
+    vless_ws_url = (
+        f"vless://{CONFIG['WsUuid']}@{ws_opt}:{ws_port}"
+        f"?encryption=none&security=tls&sni={ws_sni}&type=ws&host={ws_sni}"
+        f"&path={ws_path}&fp=chrome#VLESS-WS-CF"
     )
 
     out_dir = os.path.join(root, "nodes")
     targets = [
         (os.path.join(out_dir, "vless.txt"), vless_url + "\n"),
         (os.path.join(out_dir, "hysteria2.txt"), hy2_url + "\n"),
+        (os.path.join(out_dir, "vless_ws.txt"), vless_ws_url + "\n"),
     ]
     if is_preview:
         return [p for p, _ in targets]
