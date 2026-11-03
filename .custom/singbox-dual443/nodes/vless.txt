@@ -1,1 +1,0 @@
-vless://REPLACE_WITH_UUID@REPLACE_WITH_NODE_ADDRESS:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=REPLACE_WITH_REALITY_SNI&fp=chrome&pbk=REPLACE_WITH_REALITY_PUBLIC_KEY&sid=REPLACE_WITH_REALITY_SHORT_ID&type=tcp&headerType=none#Reality

@@ -608,7 +608,7 @@ def update_mihomo(path):
 
 
 def render_node_links(root, is_preview=False):
-    """用与 server.json 同一批取值生成 nodes/*.txt 分享链接，避免两端不一致。"""
+    """用与 server.json 同一批取值生成 client/nodes.txt 分享链接汇总，每行一个节点，方便客户端一键导入。"""
     node = str(CONFIG["NodeAddress"]).strip()
     node_encoded = urllib.parse.quote(node, safe="")
     reality_port = int(CONFIG.get("RealityPort", 443))
@@ -638,24 +638,17 @@ def render_node_links(root, is_preview=False):
         f"&path={ws_path}&fp=chrome#CF-CDN"
     )
 
-    out_dir = os.path.join(root, "nodes")
-    targets = [
-        (os.path.join(out_dir, "vless.txt"), vless_url + "\n"),
-        (os.path.join(out_dir, "hysteria2.txt"), hy2_url + "\n"),
-        (os.path.join(out_dir, "vless_ws.txt"), vless_ws_url + "\n"),
-    ]
+    target = os.path.join(root, "client", "nodes.txt")
     if is_preview:
-        return [p for p, _ in targets]
+        return [target]
 
-    os.makedirs(out_dir, exist_ok=True)
-    written = []
-    for path, content in targets:
-        temp = f"{path}.tmp-{uuid.uuid4().hex}"
-        with open(temp, "w", encoding="utf-8", newline="\n") as f:
-            f.write(content)
-        os.replace(temp, path)
-        written.append(path)
-    return written
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    temp = f"{target}.tmp-{uuid.uuid4().hex}"
+    content = f"{vless_url}\n{hy2_url}\n{vless_ws_url}\n"
+    with open(temp, "w", encoding="utf-8", newline="\n") as f:
+        f.write(content)
+    os.replace(temp, target)
+    return [target]
 
 
 def parse_args():

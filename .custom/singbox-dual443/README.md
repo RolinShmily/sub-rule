@@ -16,11 +16,11 @@
 | └─ `server_v4only.json` | 纯 IPv4 VPS 服务端（安全拒绝公网 IPv6 请求） |
 | `client/` | 客户端配置目录（Windows / macOS / Linux 通用） |
 | ├─ `mihomo-clash.yaml` | 通用双栈客户端配置（内置 Reality / Hysteria2 / CF-CDN 三节点） |
-| └─ `mihomo-clash-v4only.yaml` | 纯 IPv4 VPS 专属客户端配置（本地 0ms 截断公网 IPv6，触发 Happy Eyeballs 秒退走 IPv4） |
+| ├─ `mihomo-clash-v4only.yaml` | 纯 IPv4 VPS 专属客户端配置（本地 0ms 截断公网 IPv6，触发 Happy Eyeballs 秒退走 IPv4） |
+| └─ `nodes.txt` | 节点分享链接汇总（包含 Reality / Hysteria2 / CF-CDN 三节点，每行一个，支持客户端一键全量导入） |
 | `router-selfonly/` | Debian 软路由专用本机透明代理与下游物理隔离方案 |
 | ├─ `mihomo-homerouter-deb.yaml` | 软路由专用配置（纯 IPv4 加固、TUN `auto-redirect: false`、排除校园网与局域网、支持 `proxy-providers` 外部订阅） |
 | └─ `setup-router-guard.sh` | 一键策略路由脚本，将 `iif br-lan` 钉死在主路由表，下游发出的流量 100% 纯软路由透传 |
-| `nodes/` | 节点分享链接（`vless.txt`、`hysteria2.txt` 与 `vless_ws.txt`，由脚本自动同步生成，与服务端同源） |
 | `Update-SingboxDual443.py` | 全平台统一批量原地凭据覆写脚本（Python 3 原生，无第三方依赖，支持 Linux/macOS/Windows） |
 | `../archives/` | **历史版本归档**：历史 sing-box 客户端与软路由全套配置已移入该目录保存 |
 
