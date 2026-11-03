@@ -547,7 +547,7 @@ def update_mihomo(path):
         "password": (4, CONFIG["Hy2Password"]),
         "sni": (4, CONFIG["Hy2Sni"]),
     })
-    text = set_yaml_proxy(text, "VLESS-WS-CF", {
+    text = set_yaml_proxy(text, "CF-CDN", {
         "server": (4, CONFIG["WsOptimizedDomain"]),
         "port": (4, int(CONFIG.get("WsPort", 8443))),
         "uuid": (4, CONFIG["WsUuid"]),
@@ -635,7 +635,7 @@ def render_node_links(root, is_preview=False):
     vless_ws_url = (
         f"vless://{CONFIG['WsUuid']}@{ws_opt}:{ws_port}"
         f"?encryption=none&security=tls&sni={ws_sni}&type=ws&host={ws_sni}"
-        f"&path={ws_path}&fp=chrome#VLESS-WS-CF"
+        f"&path={ws_path}&fp=chrome#CF-CDN"
     )
 
     out_dir = os.path.join(root, "nodes")

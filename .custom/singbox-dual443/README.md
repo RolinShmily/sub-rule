@@ -15,7 +15,7 @@
 | ├─ `server.json` | 通用双栈 VPS 服务端（Reality TCP 443 + Hy2 UDP 443 + VLESS-WS TCP 8443） |
 | └─ `server_v4only.json` | 纯 IPv4 VPS 服务端（安全拒绝公网 IPv6 请求） |
 | `client/` | 客户端配置目录（Windows / macOS / Linux 通用） |
-| ├─ `mihomo-clash.yaml` | 通用双栈客户端配置（内置 Reality / Hysteria2 / VLESS-WS-CF 三节点） |
+| ├─ `mihomo-clash.yaml` | 通用双栈客户端配置（内置 Reality / Hysteria2 / CF-CDN 三节点） |
 | └─ `mihomo-clash-v4only.yaml` | 纯 IPv4 VPS 专属客户端配置（本地 0ms 截断公网 IPv6，触发 Happy Eyeballs 秒退走 IPv4） |
 | `router-selfonly/` | Debian 软路由专用本机透明代理与下游物理隔离方案 |
 | ├─ `mihomo-homerouter-deb.yaml` | 软路由专用配置（纯 IPv4 加固、TUN `auto-redirect: false`、排除校园网与局域网、支持 `proxy-providers` 外部订阅） |
