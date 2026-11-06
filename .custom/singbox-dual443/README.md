@@ -52,7 +52,6 @@
 | | `WsMaxEarlyData` / `WsEarlyDataHeader` | 0-RTT 握手首包长度（默认 2048）与报头名称 |
 | **公共与系统杂项** | `MihomoApiSecret` | 本机控制 API 密钥（对应 `REPLACE_WITH_API_SECRET`，访问 Web 面板凭据） |
 | | `HeadscaleServer` / `HeadscaleBaseDomain` | （可选）Headscale 控制面域名与 MagicDNS 域名；留空 `''` 时脚本自动剔除规则 |
-| | `CfSpeedtestDomain` | （可选）Cloudflare 测速站点域名（对应 `REPLACE_WITH_CF_SPEEDTEST_DOMAIN`）；留空 `''` 时脚本自动剔除规则 |
 | | `RuleSetProxy` | （可选）规则集与 Dashboard 下载镜像前缀（默认 `https://gh-proxy.com/`） |
 | | `ExternalSubscribes` | （可选）第三方外部机场订阅链接列表（原生列表 `["https://..."]`；留空 `[]` 时保持纯净不启用） |
 | | `ApplySubscribesToClients` | （开关）外部订阅是否同时作用于客户端配置（`True`/`False`） |

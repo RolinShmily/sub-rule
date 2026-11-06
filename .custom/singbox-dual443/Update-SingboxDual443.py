@@ -74,9 +74,6 @@ CONFIG = {
     "HeadscaleServer": "REPLACE_WITH_HEADSCALE_SERVER",          # 控制面域名，例如 'hs.example.com'
     "HeadscaleBaseDomain": "REPLACE_WITH_HEADSCALE_BASE_DOMAIN", # MagicDNS 根域名，例如 'tail.net'
 
-    # --- Cloudflare 测速直连杂项（可选）---
-    "CfSpeedtestDomain": "REPLACE_WITH_CF_SPEEDTEST_DOMAIN",     # 测速站点域名，例如 'cf.example.com'；留空 '' 时自动剔除规则
-
     # --- 规则集与资源下载杂项 ---
     "RuleSetProxy": "https://gh-proxy.com/",                     # 规则集与 Dashboard 下载代理前缀（必须以 / 结尾）
 
@@ -97,7 +94,7 @@ RULESET_PROXY_PLACEHOLDER = "REPLACE_WITH_RULESET_PROXY_PREFIX"
 def assert_values(values):
     """校验参数有效性，确保不带未填写的占位符且格式符合各协议规范。"""
     optional_keys = {
-        "HeadscaleServer", "HeadscaleBaseDomain", "CfSpeedtestDomain", "RuleSetProxy",
+        "HeadscaleServer", "HeadscaleBaseDomain", "RuleSetProxy",
         "ExternalSubscribes", "ApplySubscribesToClients",
         "RealityPort", "Hy2Port", "WsPort",
         "WsMaxEarlyData", "WsEarlyDataHeader"
@@ -149,8 +146,8 @@ def assert_values(values):
     if not ws_path.startswith("/") or re.search(r"\s", ws_path):
         raise ValueError("WsPath 必须以 / 开头且不能包含空格；未修改任何配置。")
 
-    for key in ["HeadscaleServer", "HeadscaleBaseDomain", "CfSpeedtestDomain"]:
-        val = str(values.get(key, "")).strip()
+    for key in ["HeadscaleServer", "HeadscaleBaseDomain"]:
+        val = str(values[key]).strip()
         if val and not val.startswith("REPLACE_WITH_"):
             if re.search(r"[\s/:]", val):
                 raise ValueError(f"{key} 只能填主机名或域名（如 hs.example.com），不要带协议、路径或端口；未修改任何配置。")
@@ -596,17 +593,6 @@ def update_mihomo(path):
     else:
         text = re.sub(r"(?m)^\s*-\s*'\+\.REPLACE_WITH_HEADSCALE_BASE_DOMAIN'[^\r\n]*\r?\n?", "", text)
         text = re.sub(r"(?m)^\s*'\+\.REPLACE_WITH_HEADSCALE_BASE_DOMAIN':[^\r\n]*\r?\n\s*-\s*100\.100\.100\.100\r?\n?", "", text)
-
-    cf_speedtest = CONFIG.get("CfSpeedtestDomain", "")
-    if cf_speedtest.startswith("REPLACE_WITH_"):
-        cf_speedtest = ""
-    else:
-        cf_speedtest = cf_speedtest.strip()
-
-    if cf_speedtest:
-        text = re.sub(r'(?m)^\s*-\s*DOMAIN-SUFFIX,REPLACE_WITH_CF_SPEEDTEST_DOMAIN,', f"  - DOMAIN-SUFFIX,{cf_speedtest},", text)
-    else:
-        text = re.sub(r'(?m)^\s*-\s*DOMAIN-SUFFIX,REPLACE_WITH_CF_SPEEDTEST_DOMAIN,[^\r\n]*\r?\n?', "", text)
 
     # 处理 proxy-providers 外部多订阅自动注入与回退
     is_router = ("router-selfonly" in path) or ("router" in path)
