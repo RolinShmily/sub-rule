@@ -2,10 +2,10 @@
 # 纯 IPv4 VPS 专属客户端 Mihomo 配置文件 (v4only 加固版)
 #
 # 核心特性：
-# 1. 结构极简：对齐 linux_mini 极简结构，仅保留单一「Proxy」选择组（Reality / Hysteria2 / Direct）；
+# 1. 结构极简：对齐 linux_mini 极简结构，保留「Proxy」主选择组与「Auto」故障转移组；
 # 2. 纯 IPv4 加固：在本地 0ms 截断拦截公网 IPv6 请求，触发 Happy Eyeballs 秒回退走 IPv4，
 #    彻底杜绝向无 IPv6 的海外 VPS 发送死数据包所引发的 dial tcp network unreachable 错误；
-# 3. 应急直连：Proxy 策略组内置 Direct，两节点同时故障时在面板一键切换直连，无需修改配置；
+# 3. 自动容灾与应急直连：Auto 组按 Reality -> Hysteria2 -> CF-CDN -> Direct 顺序自动探测降级与自愈切回，Proxy 组亦支持面板手动强制指定节点或直连；
 # 4. 局域网独立：allow-lan 为 false，仅监听本机 127.0.0.1:7890 与 9091；
 # 5. Web Dashboard：预置 metacubexd 面板（ui 目录），支持通过 RuleSetProxy 镜像加速下载；
 # 6. Tailscale / Headscale 穿透：放行 STUN/WireGuard 端口（3478, 41641），保留内网 IPv6 直通；
@@ -199,8 +199,23 @@ dns:
 # 7. 策略组配置 (Proxy Groups)
 # ==============================================================================
 proxy-groups:
+  # 主选择组（分流规则与 DNS 统一指向 Proxy，默认选中 Auto 自动容灾）
   - name: Proxy
     type: select
+    proxies:
+      - Auto
+      - Reality
+      - Hysteria2
+      - CF-CDN
+      - Direct
+
+  # 自动容灾测速组（按顺序探测故障转移与自愈回切）
+  - name: Auto
+    type: fallback
+    url: https://www.gstatic.com/generate_204
+    interval: 180
+    lazy: true
+    timeout: 3000
     proxies:
       - Reality
       - Hysteria2

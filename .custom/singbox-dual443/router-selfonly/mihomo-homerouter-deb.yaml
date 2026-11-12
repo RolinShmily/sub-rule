@@ -8,7 +8,7 @@
 # 3. 局域网管理：mixed-port 7890 与 external-controller 0.0.0.0:9091，下游 Windows 可直接访问 Web 面板；
 # 4. Web Dashboard：默认预配置 metacubexd 面板（/etc/mihomo/dashboard），支持通过 RuleSetProxy 镜像下载；
 # 5. 纯 IPv4 加固：ipv6: false，规则层内置公网 IPv6 reject，0ms 秒退回退 IPv4；
-# 6. 应急直连：Proxy 策略组内置 Direct，自建节点失效时可在面板一键直连。
+# 6. 自动容灾与应急直连：Proxy 组内置 Auto 容灾测速（Reality -> Hysteria2 -> CF-CDN -> Direct）与单节点/直连手动切换。
 #
 # 凭据字段由 Update-SingboxDual443.sh / .ps1 自动识别并批量替换；切勿公开发布含真实凭据的文件。
 # ==============================================================================
@@ -215,8 +215,23 @@ dns:
 # 7. 策略组配置 (Proxy Groups)
 # ==============================================================================
 proxy-groups:
+  # 主选择组（分流规则与 DNS 统一指向 Proxy，默认选中 Auto 自动容灾）
   - name: Proxy
     type: select
+    proxies:
+      - Auto
+      - Reality
+      - Hysteria2
+      - CF-CDN
+      - Direct
+
+  # 自动容灾测速组（按顺序探测故障转移与自愈回切）
+  - name: Auto
+    type: fallback
+    url: https://www.gstatic.com/generate_204
+    interval: 180
+    lazy: true
+    timeout: 3000
     proxies:
       - Reality
       - Hysteria2

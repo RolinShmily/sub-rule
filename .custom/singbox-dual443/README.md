@@ -54,7 +54,7 @@
 | | `HeadscaleServer` / `HeadscaleBaseDomain` | （可选）Headscale 控制面域名与 MagicDNS 域名；留空 `''` 时脚本自动剔除规则 |
 | | `RuleSetProxy` | （可选）规则集与 Dashboard 下载镜像前缀（默认 `https://gh-proxy.com/`） |
 | | `ExternalSubscribes` | （可选）第三方外部机场订阅链接列表（原生列表 `["https://..."]`；留空 `[]` 时保持纯净不启用） |
-| | `ApplySubscribesToClients` | （开关）外部订阅是否同时作用于客户端配置（`True`/`False`） |
+| | `EnableExternalSubscribes` | （开关）外部订阅总开关（`True` 时软路由与各客户端均注入；`False` 时均不注入） |
 
 > 生成密钥对命令：
 > ```bash
@@ -97,7 +97,7 @@ python .\Update-SingboxDual443.py
 2. **排除网段**：
    - 显式排除 `192.168.0.0/16`（`br-lan`）、`172.16.0.0/12`、`172.32.0.0/12`（校园网大二层/认证直连）、`10.0.0.0/8` 与 `100.64.0.0/10`（Tailscale）。
 3. **多订阅扩展 (`proxy-providers`)**：
-   - 配置顶部预设 `0. 外部订阅提供者`。填入外部机场/第三方订阅链接后，`Proxy` 策略组会自动汇聚所有节点。
+   - 配置顶部预设 `0. 外部订阅提供者`。在脚本中开启 `EnableExternalSubscribes: True` 并填入外部机场/第三方订阅链接后，软路由与客户端的 `Proxy` 策略组会自动汇聚所有节点。
    - 支持多订阅叠加：复制 `Subscribe_0` 并重命名为 `Subscribe_1`、`Subscribe_2`，在策略组 `use` 中添加对应名字即可。
 4. **后台守护进程 (systemd)**：
    创建 `/etc/systemd/system/mihomo.service`：
@@ -130,5 +130,6 @@ python .\Update-SingboxDual443.py
 1. **访问面板**：
    - 软路由端：局域网设备直接在浏览器访问 `http://192.168.22.1:9091/ui`（密码填写 `MihomoApiSecret`）。
    - 桌面客户端：本地浏览器访问 `http://127.0.0.1:9091/ui`。
-2. **应急直连**：
-   - `Proxy` 策略组内置 `Reality`、`Hysteria2`、`Direct` 三个出口。自建节点不可用时，在面板中直接切换为 `Direct` 即可恢复直连上网，无需修改配置文件。
+2. **自动容灾与应急直连**：
+   - `Proxy` 策略组默认选中 `Auto` 容灾测速组（按 `Reality -> Hysteria2 -> CF-CDN -> Direct` 顺序自动故障转移降级与健康自愈回切）。
+   - 若需调试或排障，亦可在面板直接手动切换单节点或切为 `Direct` 直连，无需修改配置文件。

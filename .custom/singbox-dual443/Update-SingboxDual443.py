@@ -77,12 +77,12 @@ CONFIG = {
     # --- 规则集与资源下载杂项 ---
     "RuleSetProxy": "https://gh-proxy.com/",                     # 规则集与 Dashboard 下载代理前缀（必须以 / 结尾）
 
-    # --- 软路由第三方外部订阅杂项 ---
+    # --- 第三方外部订阅杂项 (机场订阅) ---
     "ExternalSubscribes": [
         # "https://airport1.com/api/v1/client/subscribe?token=xxxxxx",
         # "https://airport2.com/api/v1/client/subscribe?token=yyyyyy",
     ],
-    "ApplySubscribesToClients": False,                           # 外部订阅是否同时作用于客户端配置（True/False）
+    "EnableExternalSubscribes": False,                           # 外部订阅总开关：True 时软路由与各客户端均注入；False 时均不注入
 }
 
 # ==============================================================================
@@ -95,7 +95,7 @@ def assert_values(values):
     """校验参数有效性，确保不带未填写的占位符且格式符合各协议规范。"""
     optional_keys = {
         "HeadscaleServer", "HeadscaleBaseDomain", "RuleSetProxy",
-        "ExternalSubscribes", "ApplySubscribesToClients",
+        "ExternalSubscribes", "EnableExternalSubscribes", "ApplySubscribesToClients",
         "RealityPort", "Hy2Port", "WsPort",
         "WsMaxEarlyData", "WsEarlyDataHeader"
     }
@@ -238,9 +238,9 @@ def apply_ruleset_proxy_to_yaml(text):
     return text[:start.end()] + new_section + text[section_end:]
 
 
-def apply_proxy_providers_to_yaml(text, subs, is_router=True, apply_to_client=False):
-    """处理 proxy-providers 与 proxy-groups 的动态注入与回退清理（支持软路由与客户端解耦）。"""
-    effective_subs = subs if (is_router or apply_to_client) else []
+def apply_proxy_providers_to_yaml(text, subs, enabled=False, is_router=False):
+    """处理 proxy-providers 与 proxy-groups 的动态注入与回退清理（全局开关控制所有客户端与软路由）。"""
+    effective_subs = subs if enabled else []
     valid_subs = [s.strip() for s in effective_subs if s and not str(s).startswith("REPLACE_WITH_")]
     sec0_pattern = r'(?ms)^# =+\r?\n# 0\. 外部订阅提供者.*?(?=# =+\r?\n# 1\. 代理节点配置)'
     sec1_pattern = r'(?m)^(# =+\r?\n# 1\. 代理节点配置)'
@@ -299,7 +299,7 @@ def apply_proxy_providers_to_yaml(text, subs, is_router=True, apply_to_client=Fa
             # 客户端若无订阅或关闭开关，彻底清理 Section 0（保持绝对纯净）
             text = re.sub(sec0_pattern, "", text, count=1)
 
-    group_pattern = r'(?ms)(^proxy-groups:\r?\n  - name: Proxy\r?\n    type: select\r?\n    proxies:\r?\n(?:      - [^\r\n]+\r?\n)+)(?:    use:\r?\n(?:      - [^\r\n]+\r?\n)+)?'
+    group_pattern = r'(?ms)(^proxy-groups:\r?\n(?:\s*#[^\r\n]*\r?\n)*\s*- name: Proxy\r?\n\s+type: select\r?\n\s+proxies:\r?\n(?:      - [^\r\n]+\r?\n)+)(?:    use:\r?\n(?:      - [^\r\n]+\r?\n)+)?'
     def repl_group(m):
         base = m.group(1)
         if valid_subs:
@@ -594,14 +594,18 @@ def update_mihomo(path):
         text = re.sub(r"(?m)^\s*-\s*'\+\.REPLACE_WITH_HEADSCALE_BASE_DOMAIN'[^\r\n]*\r?\n?", "", text)
         text = re.sub(r"(?m)^\s*'\+\.REPLACE_WITH_HEADSCALE_BASE_DOMAIN':[^\r\n]*\r?\n\s*-\s*100\.100\.100\.100\r?\n?", "", text)
 
-    # 处理 proxy-providers 外部多订阅自动注入与回退
+    # 处理 proxy-providers 外部多订阅自动注入与回退（全局统一开关）
     is_router = ("router-selfonly" in path) or ("router" in path)
-    apply_to_client = bool(CONFIG.get("ApplySubscribesToClients", False))
+    enable_subs = CONFIG.get("EnableExternalSubscribes")
+    if enable_subs is None:
+        enable_subs = CONFIG.get("ApplySubscribesToClients", False)
+    enable_subs = bool(enable_subs)
+
     text = apply_proxy_providers_to_yaml(
         text,
         CONFIG.get("ExternalSubscribes", []),
-        is_router=is_router,
-        apply_to_client=apply_to_client
+        enabled=enable_subs,
+        is_router=is_router
     )
 
     return apply_ruleset_proxy_to_yaml(text)
