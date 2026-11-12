@@ -5,7 +5,7 @@
 # 1. 下游隔离：auto-redirect 设为 false，严防 iptables 劫持下游 br-lan 网桥转发流量；
 # 2. 排除网段：route-exclude-address 与 rules 显式排除 192.168.0.0/16 (br-lan)、
 #    172.16.0.0/12、172.32.0.0/12 (高校校园网大二层/Portal 认证)、10.0.0.0/8 与 100.64.0.0/10 (Tailscale)；
-# 3. 局域网管理：mixed-port 7890 与 external-controller 0.0.0.0:9090，下游 Windows 可直接访问 Web 面板；
+# 3. 局域网管理：mixed-port 7890 与 external-controller 0.0.0.0:9091，下游 Windows 可直接访问 Web 面板；
 # 4. Web Dashboard：默认预配置 metacubexd 面板（/etc/mihomo/dashboard），支持通过 RuleSetProxy 镜像下载；
 # 5. 纯 IPv4 加固：ipv6: false，规则层内置公网 IPv6 reject，0ms 秒退回退 IPv4；
 # 6. 应急直连：Proxy 策略组内置 Direct，自建节点失效时可在面板一键直连。

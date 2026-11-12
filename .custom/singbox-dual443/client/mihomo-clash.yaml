@@ -4,7 +4,7 @@
 # 核心特性：
 # 1. 结构极简：对齐 linux_mini 极简结构，仅保留单一「Proxy」选择组（Reality / Hysteria2 / Direct）；
 # 2. 应急直连：Proxy 策略组内置 Direct，两节点同时故障时在面板一键切换直连，无需修改配置；
-# 3. 局域网独立：allow-lan 为 false，仅监听本机 127.0.0.1:7890 与 9090；
+# 3. 局域网独立：allow-lan 为 false，仅监听本机 127.0.0.1:7890 与 9091；
 # 4. Web Dashboard：预置 metacubexd 面板（ui 目录），支持通过 RuleSetProxy 镜像加速下载；
 # 5. Tailscale / Headscale 穿透：放行 STUN/WireGuard 端口（3478, 41641），排除标准内网网段；
 # 6. 国内镜像直连：gh-proxy 强制走 Direct 出站与国内 DoH 解析，杜绝冷启动拉取规则集死锁。
@@ -87,7 +87,7 @@ ntp:
 # ==============================================================================
 # 3. 外部控制与 Web 管理面板 (External Controller & Web UI)
 # ==============================================================================
-external-controller: 127.0.0.1:9090
+external-controller: 127.0.0.1:9091
 secret: REPLACE_WITH_API_SECRET
 external-ui: ui
 external-ui-name: metacubexd
@@ -106,8 +106,12 @@ tun:
   auto-detect-interface: true
   strict-route: true
   route-exclude-address:
-    - 100.64.0.0/10
-    - fd7a:115c:a1e0::/48
+    - 192.168.0.0/16           # 局域网私网段
+    - 172.16.0.0/12            # RFC 1918 私网段
+    - 172.32.0.0/12            # 校园网大二层 / Web Portal 认证段
+    - 10.0.0.0/8               # 校园网 / 企业私网段
+    - 100.64.0.0/10            # Tailscale / Headscale / CGNAT
+    - fd7a:115c:a1e0::/48      # Tailscale IPv6 ULA
 
 # ==============================================================================
 # 5. 域名嗅探与协议识别 (Sniffer)
