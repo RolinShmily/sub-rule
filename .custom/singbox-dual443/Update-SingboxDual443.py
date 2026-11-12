@@ -242,14 +242,12 @@ def apply_proxy_providers_to_yaml(text, subs, enabled=False, is_router=False):
     """处理 proxy-providers 与 proxy-groups 的动态注入与回退清理（全局开关控制所有客户端与软路由）。"""
     effective_subs = subs if enabled else []
     valid_subs = [s.strip() for s in effective_subs if s and not str(s).startswith("REPLACE_WITH_")]
-    sec0_pattern = r'(?ms)^# =+\r?\n# 0\. 外部订阅提供者.*?(?=# =+\r?\n# 1\. 代理节点配置)'
-    sec1_pattern = r'(?m)^(# =+\r?\n# 1\. 代理节点配置)'
+    sec0_pattern = r'(?ms)^#\s*(?:=+\r?\n#\s*)?(?:0\.\s*)?外部订阅.*?(?=#\s*(?:=+\r?\n#\s*)?(?:1\.\s*)?代理节点|(?=proxies:))'
+    sec1_pattern = r'(?m)^(#\s*(?:=+\r?\n#\s*)?(?:1\.\s*)?代理节点|proxies:)'
 
     if valid_subs:
         lines = [
-            "# ==============================================================================",
-            "# 0. 外部订阅提供者 (Proxy Providers / 机场订阅)",
-            "# ==============================================================================",
+            "# 外部订阅 (proxy-providers)",
             "proxy-providers:",
         ]
         for i, url in enumerate(valid_subs):
@@ -273,16 +271,11 @@ def apply_proxy_providers_to_yaml(text, subs, enabled=False, is_router=False):
             text = re.sub(sec1_pattern, sec0_content + r'\1', text, count=1)
     else:
         if is_router:
-            template = """# ==============================================================================
-# 0. 外部订阅提供者 (Proxy Providers / 机场订阅)
-# ==============================================================================
-# 可选：支持 Clash YAML 格式、Base64 通用订阅或原始 URI 节点列表。
-# 若在 Update-SingboxDual443.py 中配置了 ExternalSubscribes，脚本会自动在此生成订阅并联动至下方策略组。
-# 模板示例（如需手动启用，取消下方注释并填入订阅链接）：
+            template = """# 外部订阅 (proxy-providers)
 # proxy-providers:
 #   Subscribe_0:
 #     type: http
-#     url: "你的订阅链接"
+#     url: "https://example.com/sub"
 #     path: ./proxy_providers/subscribe_0.yaml
 #     interval: 86400
 #     health-check:

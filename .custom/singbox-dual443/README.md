@@ -97,7 +97,7 @@ python .\Update-SingboxDual443.py
 2. **排除网段**：
    - 显式排除 `192.168.0.0/16`（`br-lan`）、`172.16.0.0/12`、`172.32.0.0/12`（校园网大二层/认证直连）、`10.0.0.0/8` 与 `100.64.0.0/10`（Tailscale）。
 3. **多订阅扩展 (`proxy-providers`)**：
-   - 配置顶部预设 `0. 外部订阅提供者`。在脚本中开启 `EnableExternalSubscribes: True` 并填入外部机场/第三方订阅链接后，软路由与客户端的 `Proxy` 策略组会自动汇聚所有节点。
+   - 配置顶部预设 `外部订阅 (proxy-providers)`。在脚本中开启 `EnableExternalSubscribes: True` 并填入外部机场/第三方订阅链接后，软路由与客户端的 `Proxy` 策略组会自动汇聚所有节点。
    - 支持多订阅叠加：复制 `Subscribe_0` 并重命名为 `Subscribe_1`、`Subscribe_2`，在策略组 `use` 中添加对应名字即可。
 4. **后台守护进程 (systemd)**：
    创建 `/etc/systemd/system/mihomo.service`：

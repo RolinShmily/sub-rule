@@ -1,22 +1,4 @@
-# ==============================================================================
-# 纯 IPv4 VPS 专属客户端 Mihomo 配置文件 (v4only 加固版)
-#
-# 核心特性：
-# 1. 结构极简：对齐 linux_mini 极简结构，保留「Proxy」主选择组与「Auto」故障转移组；
-# 2. 纯 IPv4 加固：在本地 0ms 截断拦截公网 IPv6 请求，触发 Happy Eyeballs 秒回退走 IPv4，
-#    彻底杜绝向无 IPv6 的海外 VPS 发送死数据包所引发的 dial tcp network unreachable 错误；
-# 3. 自动容灾与应急直连：Auto 组按 Reality -> Hysteria2 -> CF-CDN -> Direct 顺序自动探测降级与自愈切回，Proxy 组亦支持面板手动强制指定节点或直连；
-# 4. 局域网独立：allow-lan 为 false，仅监听本机 127.0.0.1:7890 与 9091；
-# 5. Web Dashboard：预置 metacubexd 面板（ui 目录），支持通过 RuleSetProxy 镜像加速下载；
-# 6. Tailscale / Headscale 穿透：放行 STUN/WireGuard 端口（3478, 41641），保留内网 IPv6 直通；
-# 7. 国内镜像直连：gh-proxy 强制走 Direct 出站与国内 DoH 解析，杜绝冷启动拉取规则集死锁。
-#
-# 凭据字段由 Update-SingboxDual443.sh / .ps1 自动识别并批量替换；切勿公开发布含真实凭据的文件。
-# ==============================================================================
-
-# ==============================================================================
-# 1. 代理节点配置 (Proxies)
-# ==============================================================================
+# 代理节点
 proxies:
   - name: Reality
     type: vless
@@ -32,7 +14,7 @@ proxies:
     reality-opts:
       public-key: REPLACE_WITH_REALITY_PUBLIC_KEY
       short-id: REPLACE_WITH_REALITY_SHORT_ID
-    # 注意：使用 xtls-rprx-vision 流控时严禁开启 smux 多路复用，否则会破坏 TLS 记录层填充导致协议断流
+    # vision 流控需禁用 smux
     smux:
       enabled: false
 
@@ -65,9 +47,7 @@ proxies:
     type: direct
     udp: true
 
-# ==============================================================================
-# 2. 基础与网络设置 (General Settings)
-# ==============================================================================
+# 基础配置
 mixed-port: 7890
 allow-lan: false
 bind-address: 127.0.0.1
@@ -86,18 +66,14 @@ ntp:
   enable: true
   write-to-system: false
 
-# ==============================================================================
-# 3. 外部控制与 Web 管理面板 (External Controller & Web UI)
-# ==============================================================================
+# 外部控制与面板
 external-controller: 127.0.0.1:9091
 secret: REPLACE_WITH_API_SECRET
 external-ui: ui
 external-ui-name: metacubexd
 external-ui-url: "https://gh-proxy.com/https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
 
-# ==============================================================================
-# 4. TUN 虚拟网卡设置 (TUN Settings)
-# ==============================================================================
+# TUN 设置
 tun:
   enable: true
   stack: system
@@ -108,16 +84,14 @@ tun:
   auto-detect-interface: true
   strict-route: true
   route-exclude-address:
-    - 192.168.0.0/16           # 局域网私网段
-    - 172.16.0.0/12            # RFC 1918 私网段
-    - 172.32.0.0/12            # 校园网大二层 / Web Portal 认证段
-    - 10.0.0.0/8               # 校园网 / 企业私网段
+    - 192.168.0.0/16           # 局域网私网
+    - 172.16.0.0/12            # RFC 1918 私网
+    - 172.32.0.0/12            # 校园网 / Portal 认证段
+    - 10.0.0.0/8               # 校园网 / 企业私网
     - 100.64.0.0/10            # Tailscale / Headscale / CGNAT
     - fd7a:115c:a1e0::/48      # Tailscale IPv6 ULA
 
-# ==============================================================================
-# 5. 域名嗅探与协议识别 (Sniffer)
-# ==============================================================================
+# 域名嗅探
 sniffer:
   enable: true
   override-destination: false
@@ -140,9 +114,7 @@ sniffer:
     - Mijia Cloud
     - +.push.apple.com
 
-# ==============================================================================
-# 6. DNS 模块与分流策略 (DNS Settings)
-# ==============================================================================
+# DNS
 dns:
   enable: true
   cache-algorithm: arc
@@ -195,11 +167,9 @@ dns:
     - rule-set:applecn_domain
     - rule-set:steamcn_domain
 
-# ==============================================================================
-# 7. 策略组配置 (Proxy Groups)
-# ==============================================================================
+# 策略组
 proxy-groups:
-  # 主选择组（分流规则与 DNS 统一指向 Proxy，默认选中 Auto 自动容灾）
+  # 主选择组
   - name: Proxy
     type: select
     proxies:
@@ -209,7 +179,7 @@ proxy-groups:
       - CF-CDN
       - Direct
 
-  # 自动容灾测速组（按顺序探测故障转移与自愈回切）
+  # 故障转移组 (容灾回退)
   - name: Auto
     type: fallback
     url: https://www.gstatic.com/generate_204
@@ -222,11 +192,9 @@ proxy-groups:
       - CF-CDN
       - Direct
 
-# ==============================================================================
-# 8. 分流规则 (Routing Rules)
-# ==============================================================================
+# 分流规则
 rules:
-  # --- 自建组网直连 (Headscale / Tailscale) ---
+  # 自建组网 (Headscale / Tailscale)
   - PROCESS-NAME,tailscaled.exe,Direct
   - DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_SERVER,Direct
   - DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_BASE_DOMAIN,Direct
@@ -235,18 +203,18 @@ rules:
   - DST-PORT,3478,Direct,no-resolve
   - DST-PORT,41641,Direct,no-resolve
 
-  # --- 规则集镜像站直连 (防死锁) ---
+  # 规则集镜像直连 (防冷启动死锁)
   - DOMAIN-KEYWORD,gh-proxy,Direct
   - DOMAIN-SUFFIX,gh-proxy.com,Direct
 
-  # --- 本地私网直连 ---
+  # 本地私网
   - RULE-SET,private_ip,Direct,no-resolve
   - RULE-SET,private_domain,Direct
 
-  # --- 纯 IPv4 加固：拦截其余全部公网 IPv6 请求，0ms 秒退 IPv4 ---
+  # 公网 IPv6 拦截 (纯 IPv4 快速回退)
   - IP-CIDR6,::/0,REJECT,no-resolve
 
-  # --- 规则集匹配 (应用与域名分流) ---
+  # 规则集分流
   - RULE-SET,ai_domain,Proxy
   - RULE-SET,youtube_domain,Proxy
   - RULE-SET,google_domain,Proxy
@@ -272,12 +240,10 @@ rules:
   - RULE-SET,netflix_ip,Proxy
   - RULE-SET,cn_ip,Direct
 
-  # --- 兜底策略 ---
+  # 兜底
   - MATCH,Proxy
 
-# ==============================================================================
-# 9. 远程规则集提供者 (Rule Providers)
-# ==============================================================================
+# 规则集
 rule-providers:
   fakeipfilter_cn:
     type: http

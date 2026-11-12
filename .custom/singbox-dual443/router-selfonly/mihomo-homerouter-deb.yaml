@@ -1,28 +1,8 @@
-# ==============================================================================
-# Debian 软路由专用 Mihomo 配置文件 (v4only 纯 IPv4 加固)
-#
-# 核心特性：
-# 1. 下游隔离：auto-redirect 设为 false，严防 iptables 劫持下游 br-lan 网桥转发流量；
-# 2. 排除网段：route-exclude-address 与 rules 显式排除 192.168.0.0/16 (br-lan)、
-#    172.16.0.0/12、172.32.0.0/12 (高校校园网大二层/Portal 认证)、10.0.0.0/8 与 100.64.0.0/10 (Tailscale)；
-# 3. 局域网管理：mixed-port 7890 与 external-controller 0.0.0.0:9091，下游 Windows 可直接访问 Web 面板；
-# 4. Web Dashboard：默认预配置 metacubexd 面板（/etc/mihomo/dashboard），支持通过 RuleSetProxy 镜像下载；
-# 5. 纯 IPv4 加固：ipv6: false，规则层内置公网 IPv6 reject，0ms 秒退回退 IPv4；
-# 6. 自动容灾与应急直连：Proxy 组内置 Auto 容灾测速（Reality -> Hysteria2 -> CF-CDN -> Direct）与单节点/直连手动切换。
-#
-# 凭据字段由 Update-SingboxDual443.sh / .ps1 自动识别并批量替换；切勿公开发布含真实凭据的文件。
-# ==============================================================================
-
-# ==============================================================================
-# 0. 外部订阅提供者 (Proxy Providers / 机场订阅)
-# ==============================================================================
-# 可选：支持 Clash YAML 格式、Base64 通用订阅或原始 URI 节点列表。
-# 若在更新脚本中配置了 ExternalSubscribes，脚本会自动在此生成订阅并联动至下方策略组。
-# 模板示例（如需手动启用，取消下方注释并填入订阅链接）：
+# 外部订阅 (proxy-providers)
 # proxy-providers:
 #   Subscribe_0:
 #     type: http
-#     url: "你的订阅链接"
+#     url: "https://example.com/sub"
 #     path: ./proxy_providers/subscribe_0.yaml
 #     interval: 86400
 #     health-check:
@@ -30,9 +10,7 @@
 #       url: https://www.gstatic.com/generate_204
 #       interval: 300
 
-# ==============================================================================
-# 1. 代理节点配置 (Proxies)
-# ==============================================================================
+# 代理节点
 proxies:
   - name: Reality
     type: vless
@@ -48,7 +26,7 @@ proxies:
     reality-opts:
       public-key: REPLACE_WITH_REALITY_PUBLIC_KEY
       short-id: REPLACE_WITH_REALITY_SHORT_ID
-    # 注意：使用 xtls-rprx-vision 流控时严禁开启 smux 多路复用，否则会破坏 TLS 记录层填充导致协议断流
+    # vision 流控需禁用 smux
     smux:
       enabled: false
 
@@ -81,9 +59,7 @@ proxies:
     type: direct
     udp: true
 
-# ==============================================================================
-# 2. 基础与局域网设置 (General Settings)
-# ==============================================================================
+# 基础配置
 mixed-port: 7890
 allow-lan: true
 bind-address: "*"
@@ -102,18 +78,14 @@ ntp:
   enable: true
   write-to-system: false
 
-# ==============================================================================
-# 3. 外部控制与 Web 管理面板 (External Controller & Web UI)
-# ==============================================================================
+# 外部控制与面板
 external-controller: 0.0.0.0:9091
 secret: REPLACE_WITH_API_SECRET
 external-ui: /etc/mihomo/dashboard
 external-ui-name: metacubexd
 external-ui-url: "https://gh-proxy.com/https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
 
-# ==============================================================================
-# 4. TUN 虚拟网卡与透明代理 (TUN Settings - 软路由专用隔离)
-# ==============================================================================
+# TUN 设置 (软路由防劫持)
 tun:
   enable: true
   stack: system
@@ -121,19 +93,17 @@ tun:
     - any:53
     - tcp://any:53
   auto-route: true
-  auto-redirect: false          # 核心防劫持：严禁自动向系统添加 PREROUTING 规则劫持下游物理网卡转发流量
-  auto-detect-interface: true   # 自适应 WiFi (wlo1) 与临时插入的手机 USB 共享网络 (enx*)
+  auto-redirect: false          # 禁用自动重定向，防止劫持网桥流量
+  auto-detect-interface: true
   strict-route: false
   route-exclude-address:
     - 192.168.0.0/16           # br-lan 局域网
-    - 172.16.0.0/12            # RFC 1918 私网网段
-    - 172.32.0.0/12            # 高校校园网大二层 / Web Portal 认证段
+    - 172.16.0.0/12            # RFC 1918 私网
+    - 172.32.0.0/12            # 校园网 / Portal 认证段
     - 10.0.0.0/8               # 校园网 / 私网
     - 100.64.0.0/10            # Tailscale / CGNAT
 
-# ==============================================================================
-# 5. 域名嗅探与协议识别 (Sniffer)
-# ==============================================================================
+# 域名嗅探
 sniffer:
   enable: true
   override-destination: false
@@ -156,9 +126,7 @@ sniffer:
     - Mijia Cloud
     - +.push.apple.com
 
-# ==============================================================================
-# 6. DNS 模块与分流策略 (DNS Settings)
-# ==============================================================================
+# DNS
 dns:
   enable: true
   cache-algorithm: arc
@@ -211,11 +179,9 @@ dns:
     - rule-set:applecn_domain
     - rule-set:steamcn_domain
 
-# ==============================================================================
-# 7. 策略组配置 (Proxy Groups)
-# ==============================================================================
+# 策略组
 proxy-groups:
-  # 主选择组（分流规则与 DNS 统一指向 Proxy，默认选中 Auto 自动容灾）
+  # 主选择组
   - name: Proxy
     type: select
     proxies:
@@ -225,7 +191,7 @@ proxy-groups:
       - CF-CDN
       - Direct
 
-  # 自动容灾测速组（按顺序探测故障转移与自愈回切）
+  # 故障转移组 (容灾回退)
   - name: Auto
     type: fallback
     url: https://www.gstatic.com/generate_204
@@ -238,11 +204,9 @@ proxy-groups:
       - CF-CDN
       - Direct
 
-# ==============================================================================
-# 8. 分流规则 (Routing Rules)
-# ==============================================================================
+# 分流规则
 rules:
-  # --- 自建组网直连 (Headscale / Tailscale) ---
+  # 自建组网 (Headscale / Tailscale)
   - DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_SERVER,Direct
   - DOMAIN-SUFFIX,REPLACE_WITH_HEADSCALE_BASE_DOMAIN,Direct
   - IP-CIDR,100.64.0.0/10,Direct,no-resolve
@@ -250,19 +214,19 @@ rules:
   - DST-PORT,3478,Direct,no-resolve
   - DST-PORT,41641,Direct,no-resolve
 
-  # --- 规则集镜像站直连 (防死锁) ---
+  # 规则集镜像直连 (防冷启动死锁)
   - DOMAIN-KEYWORD,gh-proxy,Direct
   - DOMAIN-SUFFIX,gh-proxy.com,Direct
 
-  # --- 局域网与校园网大二层直连 ---
+  # 局域网与校园网
   - IP-CIDR,172.32.0.0/12,Direct,no-resolve
   - RULE-SET,private_ip,Direct,no-resolve
   - RULE-SET,private_domain,Direct
 
-  # --- 纯 IPv4 加固：拦截其余全部公网 IPv6 请求，0ms 秒退 IPv4 ---
+  # 公网 IPv6 拦截 (纯 IPv4 快速回退)
   - IP-CIDR6,::/0,REJECT,no-resolve
 
-  # --- 规则集匹配 (应用与域名分流) ---
+  # 规则集分流
   - RULE-SET,ai_domain,Proxy
   - RULE-SET,youtube_domain,Proxy
   - RULE-SET,google_domain,Proxy
@@ -288,12 +252,10 @@ rules:
   - RULE-SET,netflix_ip,Proxy
   - RULE-SET,cn_ip,Direct
 
-  # --- 兜底策略 ---
+  # 兜底
   - MATCH,Proxy
 
-# ==============================================================================
-# 9. 远程规则集提供者 (Rule Providers)
-# ==============================================================================
+# 规则集
 rule-providers:
   fakeipfilter_cn:
     type: http
