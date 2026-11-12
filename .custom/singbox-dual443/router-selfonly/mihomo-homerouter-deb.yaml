@@ -105,7 +105,7 @@ ntp:
 # ==============================================================================
 # 3. 外部控制与 Web 管理面板 (External Controller & Web UI)
 # ==============================================================================
-external-controller: 0.0.0.0:9090
+external-controller: 0.0.0.0:9091
 secret: REPLACE_WITH_API_SECRET
 external-ui: /etc/mihomo/dashboard
 external-ui-name: metacubexd

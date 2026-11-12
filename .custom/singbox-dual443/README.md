@@ -105,7 +105,7 @@ python .\Update-SingboxDual443.py
    [Unit]
    Description=Mihomo Daemon for Debian Router
    After=network.target network-online.target
-
+   
    [Service]
    Type=simple
    User=root
@@ -113,7 +113,7 @@ python .\Update-SingboxDual443.py
    Restart=on-failure
    RestartSec=5s
    LimitNOFILE=1048576
-
+   
    [Install]
    WantedBy=multi-user.target
    ```
@@ -128,7 +128,7 @@ python .\Update-SingboxDual443.py
 ## Web 控制面板与应急直连
 
 1. **访问面板**：
-   - 软路由端：局域网设备直接在浏览器访问 `http://192.168.22.1:9090/ui`（密码填写 `MihomoApiSecret`）。
-   - 桌面客户端：本地浏览器访问 `http://127.0.0.1:9090/ui`。
+   - 软路由端：局域网设备直接在浏览器访问 `http://192.168.22.1:9091/ui`（密码填写 `MihomoApiSecret`）。
+   - 桌面客户端：本地浏览器访问 `http://127.0.0.1:9091/ui`。
 2. **应急直连**：
    - `Proxy` 策略组内置 `Reality`、`Hysteria2`、`Direct` 三个出口。自建节点不可用时，在面板中直接切换为 `Direct` 即可恢复直连上网，无需修改配置文件。
