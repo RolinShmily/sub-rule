@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Update-SingboxDual443.py
-递归扫描 singbox-dual443/ 目录树并原地批量覆写双 443 服务端与客户端配置。
+config.py
+递归扫描脚本所在目录（.custom/）下的 client/、server/ 并原地批量覆写
+Reality / Hysteria2 / VLESS-WS 三协议服务端与客户端配置；archives/ 历史归档目录会被自动跳过。
 依赖：仅使用 Python 3 标准库（无需 pip 安装任何第三方依赖）。
 
 用法示例：
-    ./Update-SingboxDual443.py --preview   # 仅预检扫描识别出的文件，不修改任何文件
-    ./Update-SingboxDual443.py             # 原地批量覆写配置并同步生成节点分享链接
-    python Update-SingboxDual443.py       # Windows / 通用命令行执行
+    ./config.py --preview   # 仅预检扫描识别出的文件，不修改任何文件
+    ./config.py             # 原地批量覆写配置并同步生成节点分享链接
+    python config.py       # Windows / 通用命令行执行
 """
 
 import os
@@ -18,6 +19,9 @@ import json
 import uuid
 import argparse
 import urllib.parse
+
+# 扫描时跳过的目录（历史归档与缓存，避免误改非在用配置）
+IGNORED_DIRS = {"archives", "__pycache__", ".git"}
 
 # ==============================================================================
 # 用户参数配置（请只在本机填写；切勿将含真实密钥的文件提交到公开仓库）
@@ -39,10 +43,10 @@ CONFIG = {
     "HandshakePort": 443,                                        # 握手回落目标端口（默认 443）
 
     # --------------------------------------------------------------------------
-    # 【协议二：Hysteria 2 (UDP 443 直连)】
+    # 【协议二：Hysteria 2 (UDP 27015 直连)】
     # --------------------------------------------------------------------------
     # --- 核心连接与凭据 ---
-    "Hy2Port": 443,                                              # Hysteria 2 监听与连接端口（默认 UDP 443）
+    "Hy2Port": 27015,                                            # Hysteria 2 监听与连接端口（默认 UDP 27015）
     "Hy2Sni": "REPLACE_WITH_HY2_SNI",                            # Hy2 域名（如 hy2.example.com，必须与证书一致且为灰云）
     "Hy2Password": "REPLACE_WITH_HYSTERIA2_PASSWORD",            # Hy2 连接密码（建议 16 位以上强密码）
     # --- 协议杂项 ---
@@ -238,6 +242,19 @@ def apply_ruleset_proxy_to_yaml(text):
     return text[:start.end()] + new_section + text[section_end:]
 
 
+def _is_router_config(path):
+    """软路由配置以“文件名含 router”或“TUN 关闭 auto-redirect”为判定依据。"""
+    name = os.path.basename(path).lower()
+    if "router" in name:
+        return True
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            head = f.read()
+    except OSError:
+        return False
+    return bool(re.search(r"(?m)^\s*auto-redirect:\s*false", head))
+
+
 def apply_proxy_providers_to_yaml(text, subs, enabled=False, is_router=False):
     """处理 proxy-providers 与 proxy-groups 的动态注入与回退清理（全局开关控制所有客户端与软路由）。"""
     effective_subs = subs if enabled else []
@@ -332,14 +349,22 @@ def set_yaml_proxy(text, name, fields):
     return re.sub(pattern, repl, text, count=1)
 
 
+def pick_inbound(inbounds, proto, tag_hint):
+    """按协议类型 + 标签关键字（大小写不敏感）筛选入站，兼容历史大小写命名差异。"""
+    return [
+        ib for ib in inbounds
+        if isinstance(ib, dict) and ib.get("type") == proto and tag_hint in str(ib.get("tag", "")).lower()
+    ]
+
+
 def update_server(path):
     with open(path, "r", encoding="utf-8") as f:
         cfg = json.load(f)
 
     inbounds = cfg.get("inbounds", [])
-    vless_list = [ib for ib in inbounds if ib.get("tag") == "VLESS-Vision-Reality-in" and ib.get("type") == "vless"]
-    hy2_list = [ib for ib in inbounds if ib.get("tag") == "hysteria-in" and ib.get("type") == "hysteria2"]
-    ws_list = [ib for ib in inbounds if ib.get("tag") == "vless-ws-in" and ib.get("type") == "vless"]
+    vless_list = pick_inbound(inbounds, "vless", "reality")
+    hy2_list = pick_inbound(inbounds, "hysteria2", "hysteria")
+    ws_list = pick_inbound(inbounds, "vless", "ws")
 
     vless = get_one(vless_list, "服务端 Reality 入站")
     hy2 = get_one(hy2_list, "服务端 Hy2 入站")
@@ -371,7 +396,7 @@ def update_server(path):
     vless["tls"]["reality"]["short_id"] = [CONFIG["ShortId"]]
 
     # 协议二：Hysteria 2
-    hy2["listen_port"] = int(CONFIG.get("Hy2Port", 443))
+    hy2["listen_port"] = int(CONFIG.get("Hy2Port", 27015))
     hy2_user["password"] = CONFIG["Hy2Password"]
     hy2["tls"]["server_name"] = CONFIG["Hy2Sni"]
     hy2["tls"]["certificate_path"] = CONFIG["CertificatePath"]
@@ -536,7 +561,7 @@ def update_mihomo(path):
     })
     text = set_yaml_proxy(text, "Hysteria2", {
         "server": (4, CONFIG["NodeAddress"]),
-        "port": (4, int(CONFIG.get("Hy2Port", 443))),
+        "port": (4, int(CONFIG.get("Hy2Port", 27015))),
         "password": (4, CONFIG["Hy2Password"]),
         "sni": (4, CONFIG["Hy2Sni"]),
     })
@@ -588,7 +613,7 @@ def update_mihomo(path):
         text = re.sub(r"(?m)^\s*'\+\.REPLACE_WITH_HEADSCALE_BASE_DOMAIN':[^\r\n]*\r?\n\s*-\s*100\.100\.100\.100\r?\n?", "", text)
 
     # 处理 proxy-providers 外部多订阅自动注入与回退（全局统一开关）
-    is_router = ("router-selfonly" in path) or ("router" in path)
+    is_router = _is_router_config(path)
     enable_subs = CONFIG.get("EnableExternalSubscribes")
     if enable_subs is None:
         enable_subs = CONFIG.get("ApplySubscribesToClients", False)
@@ -609,7 +634,7 @@ def render_node_links(root, is_preview=False):
     node = str(CONFIG["NodeAddress"]).strip()
     node_encoded = urllib.parse.quote(node, safe="")
     reality_port = int(CONFIG.get("RealityPort", 443))
-    hy2_port = int(CONFIG.get("Hy2Port", 443))
+    hy2_port = int(CONFIG.get("Hy2Port", 27015))
     sni = urllib.parse.quote(str(CONFIG["RealitySni"]).strip(), safe=".-_")
     hy2_sni = urllib.parse.quote(str(CONFIG["Hy2Sni"]).strip(), safe=".-_")
     hy2_password = urllib.parse.quote(str(CONFIG["Hy2Password"]), safe="")
@@ -650,7 +675,7 @@ def render_node_links(root, is_preview=False):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="递归扫描 singbox-dual443/ 目录及子目录中的 .json/.yaml，批量原地覆写双 443 服务端与客户端配置。"
+        description="递归扫描脚本所在目录中的 .json/.yaml（跳过 archives/ 归档目录），批量原地覆写 Reality / Hysteria2 / VLESS-WS 服务端与客户端配置。"
     )
     parser.add_argument(
         "-c", "--config-root",
@@ -676,7 +701,8 @@ def main():
         raise ValueError(f"扫描目录不存在：{root}；未修改任何配置。")
 
     files = []
-    for dirpath, _, filenames in os.walk(root):
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d.lower() not in IGNORED_DIRS]
         for filename in filenames:
             ext = os.path.splitext(filename)[1].lower()
             if ext in [".json", ".yaml"]:
@@ -690,8 +716,8 @@ def main():
             content = f.read()
         ext = os.path.splitext(file_path)[1].lower()
         if ext == ".json":
-            is_server = bool(re.search(r'"tag"\s*:\s*"(?:VLESS-Vision-Reality-in|hysteria-in)"', content))
-            is_client = bool(re.search(r'"tag"\s*:\s*"(?:Reality|Hysteria2)"', content))
+            is_server = bool(re.search(r'"tag"\s*:\s*"[^"]*(?:reality-in|hysteria-in)"', content, re.IGNORECASE))
+            is_client = bool(re.search(r'"tag"\s*:\s*"(?:Reality|Hysteria2)"', content, re.IGNORECASE))
             if is_server and is_client:
                 raise ValueError(f"文件同时包含服务端与客户端标签：{file_path}；未修改任何配置。")
             if is_server:
@@ -711,7 +737,7 @@ def main():
 
     paths = sorted(updates.keys())
     if len(paths) == 0:
-        raise ValueError(f"扫描了 {len(files)} 个 JSON/YAML，但未识别到双 443 配置；未修改任何文件。")
+        raise ValueError(f"扫描了 {len(files)} 个 JSON/YAML，但未识别到 Reality / Hysteria2 / VLESS-WS 配置；未修改任何文件。")
 
     for p in paths:
         if "REPLACE_WITH_" in updates[p]:

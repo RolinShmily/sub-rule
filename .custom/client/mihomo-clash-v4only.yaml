@@ -21,7 +21,7 @@ proxies:
   - name: Hysteria2
     type: hysteria2
     server: REPLACE_WITH_NODE_ADDRESS
-    port: 443
+    port: 27015
     password: REPLACE_WITH_HYSTERIA2_PASSWORD
     sni: REPLACE_WITH_HY2_SNI
     skip-cert-verify: false
@@ -210,6 +210,9 @@ rules:
   # 本地私网
   - RULE-SET,private_ip,Direct,no-resolve
   - RULE-SET,private_domain,Direct
+
+  # 公网 IPv6 拦截 (纯 IPv4 快速回退)
+  - IP-CIDR6,::/0,REJECT,no-resolve
 
   # 规则集分流
   - RULE-SET,ai_domain,Proxy

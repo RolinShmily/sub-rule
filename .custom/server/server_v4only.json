@@ -5,7 +5,7 @@
   },
   "inbounds": [
     {
-      "tag": "VLESS-Vision-Reality-in",
+      "tag": "vless-vision-reality-in",
       "type": "vless",
       "listen": "0.0.0.0",
       "listen_port": 443,
@@ -17,11 +17,11 @@
       ],
       "tls": {
         "enabled": true,
-        "server_name": "www.cloudflare.com",
+        "server_name": "mirrors.ocf.berkeley.edu",
         "reality": {
           "enabled": true,
           "handshake": {
-            "server": "www.cloudflare.com",
+            "server": "mirrors.ocf.berkeley.edu",
             "server_port": 443
           },
           "private_key": "REPLACE_WITH_REALITY_PRIVATE_KEY",
@@ -39,7 +39,7 @@
       "tag": "hysteria-in",
       "type": "hysteria2",
       "listen": "0.0.0.0",
-      "listen_port": 443,
+      "listen_port": 27015,
       "users": [
         {
           "password": "REPLACE_WITH_HYSTERIA2_PASSWORD"

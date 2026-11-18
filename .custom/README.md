@@ -1,8 +1,8 @@
-# 双 443 + CDN：Debian VPS 服务端、Mihomo 客户端与软路由方案
+# Reality 443 + Hysteria2 27015 + CDN：Debian VPS 服务端、Mihomo 客户端与软路由方案
 
 本方案专为自建高性能代理打造，整合三种协议形态：
 1. **VLESS-Vision-REALITY**：监听 **TCP 443**，借用大厂证书直连伪装；
-2. **Hysteria 2**：监听 **UDP 443**，双 443 复用互不冲突，极速抗丢包；
+2. **Hysteria 2**：监听 **UDP 27015**，与 Reality TCP 443 独立共存，极速抗丢包；
 3. **VLESS-WS-TLS**：监听 **TCP 8443**，专门配合 Cloudflare CDN（橙云代理）与客户端社区优选域名/优选 IP。
 
 ---
@@ -12,23 +12,21 @@
 | 路径 | 说明 |
 | :--- | :--- |
 | `server/` | 服务端配置目录 |
-| ├─ `server.json` | 通用双栈 VPS 服务端（Reality TCP 443 + Hy2 UDP 443 + VLESS-WS TCP 8443） |
+| ├─ `server.json` | 通用双栈 VPS 服务端（Reality TCP 443 + Hy2 UDP 27015 + VLESS-WS TCP 8443） |
 | └─ `server_v4only.json` | 纯 IPv4 VPS 服务端（安全拒绝公网 IPv6 请求） |
-| `client/` | 客户端配置目录（Windows / macOS / Linux 通用） |
+| `client/` | 客户端配置目录（Windows / macOS / Linux / Debian 软路由通用） |
 | ├─ `mihomo-clash.yaml` | 通用双栈客户端配置（内置 Reality / Hysteria2 / CF-CDN 三节点） |
 | ├─ `mihomo-clash-v4only.yaml` | 纯 IPv4 VPS 专属客户端配置（本地 0ms 截断公网 IPv6，触发 Happy Eyeballs 秒退走 IPv4） |
+| ├─ `mihomo-clash-v4only-homerouter.yaml` | Debian 软路由专用配置（纯 IPv4 加固、TUN `auto-redirect: false`、排除校园网与局域网、支持 `proxy-providers` 外部订阅） |
 | └─ `nodes.txt` | 节点分享链接汇总（包含 Reality / Hysteria2 / CF-CDN 三节点，每行一个，支持客户端一键全量导入） |
-| `router-selfonly/` | Debian 软路由专用本机透明代理与下游物理隔离方案 |
-| ├─ `mihomo-homerouter-deb.yaml` | 软路由专用配置（纯 IPv4 加固、TUN `auto-redirect: false`、排除校园网与局域网、支持 `proxy-providers` 外部订阅） |
-| └─ `setup-router-guard.sh` | 一键策略路由脚本，将 `iif br-lan` 钉死在主路由表，下游发出的流量 100% 纯软路由透传 |
-| `Update-SingboxDual443.py` | 全平台统一批量原地凭据覆写脚本（Python 3 原生，无第三方依赖，支持 Linux/macOS/Windows） |
-| `../archives/` | **历史版本归档**：历史 sing-box 客户端与软路由全套配置已移入该目录保存 |
+| `config.py` | 全平台统一批量原地凭据覆写脚本（Python 3 原生，无第三方依赖，支持 Linux/macOS/Windows） |
+| `archives/` | **历史版本归档**：历史 sing-box 客户端与软路由全套配置已移入该目录保存（脚本自动跳过该目录） |
 
 ---
 
 ## 脚本参数说明
 
-直接编辑 `Update-SingboxDual443.py` 顶部的 `CONFIG` 字典，配置区按协议与杂项清晰分隔：
+直接编辑 `config.py` 顶部的 `CONFIG` 字典，配置区按协议与杂项清晰分隔：
 
 | 协议分类 | CONFIG 字段 | 用途说明 |
 | :--- | :--- | :--- |
@@ -39,7 +37,7 @@
 | | `RealityPublicKey` / `RealityPrivateKey` | Reality 密钥对；私钥只写服务端，公钥只写客户端 |
 | | `ShortId` | 2-16 位偶数长度十六进制 ShortId |
 | | `HandshakeHost` / `HandshakePort` | 服务端 Reality 回落握手目标与端口（默认 `www.cloudflare.com:443`） |
-| **协议二：Hysteria 2** | `Hy2Port` | Hysteria 2 监听与连接端口（默认 UDP 443） |
+| **协议二：Hysteria 2** | `Hy2Port` | Hysteria 2 监听与连接端口（默认 UDP 27015） |
 | | `Hy2Sni` | Hy2 证书实际覆盖的域名（在 Cloudflare 保持灰云直连） |
 | | `Hy2Password` | Hy2 连接认证密码 |
 | | `CertificatePath` / `KeyPath` | Debian VPS 上证书链与私钥绝对路径 |
@@ -70,29 +68,32 @@
 ### Linux / macOS / Debian 软路由
 ```bash
 # 预检扫描（不写文件，不暴露凭据）
-./Update-SingboxDual443.py --preview
+./config.py --preview
 
 # 执行批量覆写
-./Update-SingboxDual443.py
+./config.py
 ```
 
 ### Windows (PowerShell / CMD)
 ```powershell
 # 预检扫描
-python .\Update-SingboxDual443.py --preview
+python .\config.py --preview
 
 # 执行批量覆写
-python .\Update-SingboxDual443.py
+python .\config.py
 ```
 
 ---
 
-## Debian 软路由专用方案说明 (`router-selfonly/`)
+## Debian 软路由专用方案说明 (`client/mihomo-clash-v4only-homerouter.yaml`)
 
 专为 **Debian 单系统软路由**（WAN: 无线网卡/临时手机 USB，LAN: 双物理网口网桥 `br-lan`，DHCP: dnsmasq，防火墙: nftables）打造：
 
 1. **下游隔离**：
-   - 运行 `sudo ./router-selfonly/setup-router-guard.sh` 添加内核策略路由 `ip rule add iif br-lan table main priority 100`。
+   - 手动添加内核策略路由，将 `br-lan` 入向流量钉死在主路由表：
+     ```bash
+     sudo ip rule add iif br-lan table main priority 100
+     ```
    - 软路由配置显式设置 `auto-redirect: false`，绝对不劫持 `br-lan` 下游转发流量，保障下游 Windows 电脑与校园网 Web 认证纯透传。
 2. **排除网段**：
    - 显式排除 `192.168.0.0/16`（`br-lan`）、`172.16.0.0/12`、`172.32.0.0/12`（校园网大二层/认证直连）、`10.0.0.0/8` 与 `100.64.0.0/10`（Tailscale）。
@@ -109,7 +110,7 @@ python .\Update-SingboxDual443.py
    [Service]
    Type=simple
    User=root
-   ExecStart=/usr/bin/mihomo -d /etc/mihomo -f /etc/mihomo/mihomo-homerouter-deb.yaml
+   ExecStart=/usr/bin/mihomo -d /etc/mihomo -f /etc/mihomo/mihomo-clash-v4only-homerouter.yaml
    Restart=on-failure
    RestartSec=5s
    LimitNOFILE=1048576
